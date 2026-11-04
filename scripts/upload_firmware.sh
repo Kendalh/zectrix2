@@ -4,8 +4,9 @@
 #
 #   scripts/upload_firmware.sh [path/to/zectrix-os-vX.Y.Z.bin]
 #
-# Result: <REMOTE_DIR>/firmware/zectrix-os-vX.Y.Z_<YYYYMMDD-HHMM>.bin (+ .sha256), served at <URL_BASE>/<name>.
-# The timestamp is the file's mtime (when merge-bin produced it) in UTC. Existing files are never overwritten.
+# Result: <REMOTE_DIR>/firmware/zectrix-os-vX.Y.Z.bin (+ .sha256), served at <URL_BASE>/<name>.
+# The file keeps its own name (it carries the version): bump the version for every new build. Existing files are
+# never overwritten, so a link that was handed out keeps pointing at the same bytes.
 #
 # Host, key and directory are NOT stored in this repo. They are read from the environment, or else from
 # the aifin project's sync script (the same server, see CLAUDE.md):
@@ -34,16 +35,14 @@ done
 BIN="${1:-$(ls -1t "$ROOT"/dist/zectrix-os-*.bin 2>/dev/null | head -1)}"
 [[ -f "$BIN" ]] || { echo "[ERROR] no dist/zectrix-os-*.bin found (build and merge first, see docs/OS.md)" >&2; exit 1; }
 
-STAMP="$(TZ=UTC date -r "$BIN" +%Y%m%d-%H%M)"  # UTC, so it does not depend on the machine time zone
-BASE="$(basename "$BIN" .bin)"
-NAME="${BASE}_${STAMP}.bin"
+NAME="$(basename "$BIN")"
 LOCAL_SHA="$(sha256sum "$BIN" | cut -d' ' -f1)"
 SSH_OPTS="-i $SSH_KEY -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
 DEST="$REMOTE_DIR/firmware"
 
 # Never overwrite: a link that was handed out must keep pointing at the same bytes.
 if ssh $SSH_OPTS "$REMOTE_HOST" "test -e '$DEST/$NAME'"; then
-  echo "[ERROR] $DEST/$NAME already exists on the server; rebuild or touch the file to get a new timestamp" >&2
+  echo "[ERROR] $DEST/$NAME already exists on the server; bump the version in the file name (dist/zectrix-os-vX.Y.Z.bin)" >&2
   exit 1
 fi
 
