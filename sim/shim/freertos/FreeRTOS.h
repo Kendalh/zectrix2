@@ -3,6 +3,7 @@
 #include <cstdint>
 typedef uint32_t TickType_t;
 typedef int BaseType_t;
+typedef unsigned UBaseType_t;
 typedef void* QueueHandle_t;
 typedef void* TaskHandle_t;
 #define portMAX_DELAY 0xFFFFFFFFu

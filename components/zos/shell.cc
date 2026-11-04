@@ -163,6 +163,9 @@ void Shell::Open(int index) {
     current().OnLeave(*this);
     current_ = index;
     callback_app_ = current_;
+    // Stack headroom of the UI task, to catch a creeping overflow in the logs.
+    ESP_LOGI(kTag, "open page %d, UI stack free %u bytes", index,
+             static_cast<unsigned>(uxTaskGetStackHighWaterMark(nullptr)));
     // Partial refresh of the whole screen: header and footer are redrawn too.
     // The Display still inserts a full refresh every few partials (ghosting).
     full_ = false;

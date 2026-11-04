@@ -19,6 +19,16 @@ Chinese font on the panel are unverified); the PC simulator is the only runtime 
 - `components/esp-wifi-connect` is vendored from the youn project (MIT): the registry version needs the `json`
   component that IDF 6 removed. Do not switch back to the registry version.
 
+## Stacks and memory (real-device crashes)
+- The shell UI loop runs in the main task. IDF defaults (main 3584, lwIP 3072, event 2304 bytes) made the device reboot
+  on the Wi-Fi setup and weather pages and with USB connected (charging branch of the header). `sdkconfig.defaults`
+  now sets main 12288, lwIP 8192, event 4096, WDT 10 s, mbedTLS buffers in PSRAM, and youn's Wi-Fi/PSRAM values.
+  The weather worker task has a 16 KB stack. `sdkconfig.defaults` only applies to a NEW `sdkconfig`: delete
+  `sdkconfig` (and rebuild) after changing it.
+- Page changes log `UI stack free N bytes`; if it drops below ~2000, raise the main stack before adding features.
+- Hardware crashes cannot be reproduced here: ask the user for the serial log (`idf.py monitor`, 115200, USB-C)
+  and decode the backtrace with the matching `build/*.elf`.
+
 ## Architecture rules
 - Shell is single-threaded: an event queue (Key / PowerOff / Wake / Config). Other threads only call
   `Context::Wake()` or `Shell::PostConfigChanged()`. Never block in the Wi-Fi/SNTP callback; they set a flag and

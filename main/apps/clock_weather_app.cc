@@ -230,7 +230,7 @@ void ClockWeatherApp::MaybeFetch(zos::Context& ctx, bool force) {
     job->city.lon = settings.GetString("lon", "");
     job->resolve = job->city.lat.empty() ||
                    settings.GetString("geo_q", "") != job->query;
-    if (xTaskCreate(WorkerEntry, "weather", 8192, job, 3, nullptr) != pdPASS) {
+    if (xTaskCreate(WorkerEntry, "weather", 16384, job, 3, nullptr) != pdPASS) {
         ESP_LOGE(kTag, "cannot start the weather task");
         std::lock_guard<std::mutex> lock(mutex_);
         status_ = Status::kFailed;
