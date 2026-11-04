@@ -11,6 +11,7 @@ apps) and serves:
 """
 import argparse
 import atexit
+import base64
 import json
 import re
 import subprocess
@@ -19,7 +20,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 from PIL import Image
 
@@ -27,6 +28,11 @@ SIM = Path(__file__).resolve().parent.parent
 ROOT = SIM.parent
 MIC_FILE = "/tmp/zectrix_sim_mic.wav"  # keep in sync with kMicFile in sim_ai_platform.cc
 KEYS = {"up", "down", "ok", "okhold", "uphold", "downhold", "downlong"}
+
+
+def photo_page():
+    text = (ROOT / "main/apps/photo/photo_web_ui.h").read_text()
+    return re.search(r'R"HTML\((.*)\)HTML"', text, re.S).group(1).encode()
 
 
 def device_page():
@@ -157,12 +163,50 @@ class WebHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/":
             return send(self, 200, device_page(), "text/html")
+        if self.path == "/photos":
+            return send(self, 200, photo_page(), "text/html")
+        if self.path == "/api/photo-settings":
+            return send(self, 200, DEVICE.raw("photosettings")[5:].encode(), "application/json")
+        if self.path == "/api/photos":
+            return send(self, 200, DEVICE.raw("photolist")[5:].encode(), "application/json")
+        m = re.fullmatch(r"/api/photos/(\d+)", self.path)
+        if m:
+            reply = DEVICE.raw("photoget " + m.group(1))
+            if not reply.startswith("B64 "):
+                return send(self, 404, b"no such photo", "text/plain")
+            return send(self, 200, base64.b64decode(reply[4:]), "application/octet-stream")
         if self.path in ("/api/status", "/api/apps"):
             reply = DEVICE.raw(self.path.split("/")[-1])
             return send(self, 200, reply[5:].encode(), "application/json")
         send(self, 404, b"not found", "text/plain")
 
+    def do_DELETE(self):
+        m = re.fullmatch(r"/api/photos/(\d+)", self.path)
+        if not m or not self._guard():
+            return send(self, 404, b"not found", "text/plain")
+        _, code, *error = DEVICE.raw("photodel " + m.group(1)).split(" ", 2)
+        send(self, int(code), (error[0] if error else "ok").encode() or b"ok", "text/plain")
+
     def do_POST(self):
+        u = urlparse(self.path)
+        if u.path == "/api/photo-settings":
+            if not self._guard():
+                return
+            body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+            try:
+                payload = json.dumps(json.loads(body))
+            except ValueError:
+                return send(self, 400, b"bad json", "text/plain")
+            _, code, *error = DEVICE.raw(f"photosettings {payload}").split(" ", 2)
+            return send(self, int(code), (error[0] if error else "ok").encode() or b"ok", "text/plain")
+        if u.path == "/api/photos":
+            if not self._guard():
+                return
+            body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+            title = parse_qs(u.query).get("title", [""])[0]
+            reply = DEVICE.raw(f"photoput {quote(title) or '-'} {base64.b64encode(body).decode()}")
+            _, code, *error = reply.split(" ", 2)
+            return send(self, int(code), (error[0] if error else "ok").encode() or b"ok", "text/plain")
         m = re.fullmatch(r"/api/apps/([a-z0-9_]+)/config", self.path)
         if not m or not self._guard():
             return send(self, 404, b"not found", "text/plain")

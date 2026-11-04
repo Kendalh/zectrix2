@@ -18,7 +18,8 @@ namespace {
 constexpr char kHost[] = "business.aliyuncs.com";  // China site; the international site is business.ap-southeast-1.aliyuncs.com
 constexpr char kVersion[] = "2017-12-14";
 constexpr size_t kBillMaxResponse = 48 * 1024;      // one bill row is ~1.1 KB
-constexpr int kBillMaxResults = 50;
+constexpr int kBillMaxResults = 30;                 // ~33 KB a page: 50 rows overflow the response cap and cut the JSON
+constexpr int kBillMaxPages = 12;                   // a day has more rows than a page: follow NextToken (360 rows at most)
 constexpr time_t kMinValidTime = 1700000000;        // anything earlier means the clock was never synced
 
 uint32_t Rol(uint32_t v, int bits) { return (v << bits) | (v >> (32 - bits)); }
@@ -185,7 +186,7 @@ bool ParseBalance(const std::string& body, double* amount, std::string* error) {
     return ok;
 }
 
-bool ParseBill(const std::string& body, DayBill* out, std::string* error) {
+bool ParseBill(const std::string& body, DayBill* out, std::string* error, std::string* next_token, int* total_count) {
     cJSON* root = ParseEnvelope(body, error);
     if (!root) return false;
     const cJSON* items = cJSON_GetObjectItemCaseSensitive(cJSON_GetObjectItemCaseSensitive(root, "Data"), "Items");
@@ -202,6 +203,14 @@ bool ParseBill(const std::string& body, DayBill* out, std::string* error) {
         by_model[ModelFromInstanceId(cJSON_IsString(id) ? id->valuestring : "")] += cost;
         total += cost;
     }
+    if (next_token) {
+        const cJSON* token = cJSON_GetObjectItemCaseSensitive(cJSON_GetObjectItemCaseSensitive(root, "Data"), "NextToken");
+        *next_token = cJSON_IsString(token) && token->valuestring ? token->valuestring : "";
+    }
+    if (total_count) {
+        const cJSON* count = cJSON_GetObjectItemCaseSensitive(cJSON_GetObjectItemCaseSensitive(root, "Data"), "TotalCount");
+        *total_count = cJSON_IsNumber(count) ? static_cast<int>(count->valuedouble) : -1;
+    }
     cJSON_Delete(root);
     out->models.clear();
     for (const auto& [model, cost] : by_model) out->models.push_back({model, cost});
@@ -210,6 +219,18 @@ bool ParseBill(const std::string& body, DayBill* out, std::string* error) {
     out->total = total;
     out->ok = true;
     return true;
+}
+
+void MergeBill(const DayBill& page, DayBill* into) {
+    std::map<std::string, double> by_model;
+    for (const ModelCost& m : into->models) by_model[m.model] += m.cost;
+    for (const ModelCost& m : page.models) by_model[m.model] += m.cost;
+    into->models.clear();
+    for (const auto& [model, cost] : by_model) into->models.push_back({model, cost});
+    std::sort(into->models.begin(), into->models.end(),
+              [](const ModelCost& a, const ModelCost& b) { return a.cost > b.cost; });
+    into->total += page.total;
+    into->ok = true;
 }
 
 const std::vector<ProviderInfo>& Providers() {
@@ -386,11 +407,12 @@ void BoardService::Refresh(bool force) {
         if (!force && snap_.error.empty() && snap_.updated != 0 && now - snap_.updated < interval_min_ * 60) return;
         snap_.loading = true;
         snap_.error.clear();
+        page_count_ = 0;
     }
     Request(Stage::Balance);
 }
 
-void BoardService::Request(Stage stage) {
+void BoardService::Request(Stage stage, const std::string& next_token) {
     std::map<std::string, std::string> params;
     std::string secret;
     time_t now;
@@ -424,6 +446,7 @@ void BoardService::Request(Stage stage) {
         params["Granularity"] = "DAILY";
         params["BillingDate"] = date;
         params["MaxResults"] = std::to_string(kBillMaxResults);
+        if (!next_token.empty()) params["NextToken"] = next_token;
     }
     ai::ChatPlatform::HttpRequest request;
     request.method = "GET";
@@ -457,11 +480,25 @@ void BoardService::OnResponse(Stage stage, int status, std::string body, std::st
         Request(Stage::Yesterday);
         return;
     }
-    DayBill bill;
-    if (!ParseBill(body, &bill, &error)) {
+    DayBill page;
+    std::string next_token;
+    int total_count = -1;
+    if (!ParseBill(body, &page, &error, &next_token, &total_count)) {
         Fail(status >= 400 && error == "响应无法解析" ? "HTTP " + std::to_string(status) : error);
         return;
     }
+    // Log what the bill really holds, to compare with the console when a number looks wrong.
+    ESP_LOGI("TokenBoard", "bill %s page %d: %u Bailian models, page total %.4f, TotalCount=%d, more=%d",
+             stage == Stage::Yesterday ? "yesterday" : "today", page_count_ + 1,
+             static_cast<unsigned>(page.models.size()), page.total, total_count, next_token.empty() ? 0 : 1);
+    if (page_count_ == 0) pages_ = DayBill();
+    MergeBill(page, &pages_);
+    if (!next_token.empty() && ++page_count_ < kBillMaxPages) {  // more rows of the same day
+        Request(stage, next_token);
+        return;
+    }
+    page_count_ = 0;
+    const DayBill bill = pages_;
     {
         std::lock_guard<std::mutex> lock(mu_);
         if (stage == Stage::Yesterday) snap_.yesterday = bill;
@@ -491,6 +528,7 @@ void BoardService::UpdateBaselinesLocked(double balance, time_t now) {
 void BoardService::Fail(const std::string& error) {
     {
         std::lock_guard<std::mutex> lock(mu_);
+        page_count_ = 0;
         snap_.loading = false;
         snap_.error = error;
     }

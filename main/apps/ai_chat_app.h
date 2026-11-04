@@ -22,6 +22,7 @@ public:
     const char* id() const override { return "aichat"; }
     const char* title() const override { return "AI 问答"; }
     const char* summary() const override { return "千问语音对话"; }
+    const char* web_title() const override { return "AI 问答及绘图"; }  // its key also serves AI 水墨
     zos::KeyHints hints() const override;
     const zos::ConfigField* config_fields() const override;
     size_t config_field_count() const override;

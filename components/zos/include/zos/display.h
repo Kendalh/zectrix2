@@ -40,6 +40,12 @@ public:
     esp_err_t ShowFull1bpp(const uint8_t* data, size_t size);
     esp_err_t ShowPartialRaw(const Rect& rect, const uint8_t* data,
                              size_t size);
+    /**
+     * After Show4bpp: partial refresh of a pure black/white area (the footer of a picture). `old_pixels` is what
+     * the rect shows now, `new_pixels` what it should show (packed 1bpp, 1 = white, rect x/width multiples of 8).
+     * The panel stays "without a base": the next normal draw is a full refresh.
+     */
+    esp_err_t PartialOn4bpp(const Rect& rect, const uint8_t* old_pixels, const uint8_t* new_pixels, size_t size);
     /** White full 1bpp refresh followed by the 16-gray image. */
     esp_err_t Show4bpp(const uint8_t* data, size_t size);
 

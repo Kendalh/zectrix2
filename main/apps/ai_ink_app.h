@@ -11,8 +11,8 @@
 /**
  * AI ink painter: speak a subject, an image model paints it as a Chinese ink wash painting and the result is shown in
  * the panel's 16 grays (full screen). OK starts and stops the recording; while the picture is being made the page shows
- * the phase. On the picture: OK back, UP paint it again. Back on the page, UP shows the last
- * picture again. Uses the Bailian API Key of the AI Q&A app.
+ * the phase. On the picture (header and footer stay): OK speaks a new subject, UP paints it again, DOWN
+ * saves it to the album (相册); the footer shows the result. Back on the page, UP shows the last picture again. Uses the Bailian API Key of the AI Q&A app.
  */
 class AiInkApp : public zos::App {
 public:
@@ -37,12 +37,15 @@ private:
     void StartRecording(zos::Context& ctx);
     void FinishRecording(zos::Context& ctx);
     void ShowImage(zos::Context& ctx);
+    void SaveToAlbum(const ai::paint::Status& status);
 
     ZectrixBoard& board_;
     std::unique_ptr<ai::VoiceRecorder> recorder_;
     bool recording_ = false;
     bool showing_ = false;           // the picture is on the panel (full screen)
     uint32_t shown_revision_ = 0;    // the newest picture already shown
+    uint32_t saved_revision_ = 0;    // the newest picture already in the album
+    int save_failure_ = 0;           // the last album save of this picture: 0 none, 1 failed, 2 album full
     std::string shown_sig_;
 };
 

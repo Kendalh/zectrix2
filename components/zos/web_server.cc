@@ -79,7 +79,8 @@ void WebServer::Start(Shell& shell) {
     shell_ = &shell;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    config.stack_size = 6144;
+    config.stack_size = 8192;
+    config.max_uri_handlers = 16;
     config.lru_purge_enable = true;
     if (httpd_start(&server_, &config) != ESP_OK) {
         ESP_LOGE(kTag, "httpd_start failed");
@@ -93,6 +94,9 @@ void WebServer::Start(Shell& shell) {
         {"/api/apps/*", HTTP_POST, HandleConfig, this},
     };
     for (const httpd_uri_t& route : routes) {
+        httpd_register_uri_handler(server_, &route);
+    }
+    for (const httpd_uri_t& route : extra_routes_) {
         httpd_register_uri_handler(server_, &route);
     }
     ESP_LOGI(kTag, "web server started");

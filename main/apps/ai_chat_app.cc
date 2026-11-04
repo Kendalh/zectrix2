@@ -17,7 +17,7 @@ constexpr int kRowH = 26;        // session list rows
 
 const zos::ConfigField kFields[] = {
     {"key", "阿里云百炼 API Key", zos::ConfigField::Type::kSecret, "", nullptr,
-     "用于千问对话和语音识别（同一个 Key）。留空则不修改"},
+     "AI 问答（对话、语音识别）和 AI 水墨（绘图）共用同一个 Key。留空则不修改"},
 };
 
 size_t Utf8Len(unsigned char lead) {

@@ -195,6 +195,15 @@ esp_err_t zectrix_epd_refresh_full_1bpp(zectrix_epd_handle_t, const uint8_t* fb,
     return ESP_OK;
 }
 
+// The real driver accepts partial refreshes of this rect only after the seed; the fake panel just allows partials again.
+esp_err_t zectrix_epd_seed_bw_region(zectrix_epd_handle_t, const zectrix_epd_rect_t* r, const uint8_t*, size_t size) {
+    std::lock_guard<std::mutex> lock(g_panel.mutex);
+    if (r->x % 8 != 0 || r->width % 8 != 0) return Fail("seed rect not 8-px aligned");
+    if (size != static_cast<size_t>(r->width / 8 * r->height)) return Fail("seed: bad size");
+    g_panel.base_valid = true;
+    return ESP_OK;
+}
+
 esp_err_t zectrix_epd_refresh_partial_1bpp(zectrix_epd_handle_t, const zectrix_epd_rect_t* r,
                                            const uint8_t* px, size_t size) {
     std::lock_guard<std::mutex> lock(g_panel.mutex);

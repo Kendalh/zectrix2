@@ -64,7 +64,7 @@ std::string CannedTranscript() {
     return json;
 }
 
-// ---- ink painter fakes: a canned image reply and a synthetic 640x480 ink wash PNG (stored deflate blocks) ----
+// ---- ink painter fakes: a canned image reply and a synthetic 800x476 ink wash PNG (stored deflate blocks) ----
 
 const char kFakeImageUrl[] = "https://sim.invalid/ink.png";
 
@@ -90,9 +90,9 @@ void PutChunk(std::string* png, const char* type, const std::string& body) {
 
 // Layered hills in mist, a pale moon left as paper, a dark pine at the lower left: tones from paper white to deep ink.
 int InkPixel(int x, int y) {
-    const double fx = x / 640.0, fy = y / 480.0;
+    const double fx = x / 800.0, fy = y / 476.0;
     double v = 245 - 40 * fy * fy;  // paper, a little darker toward the bottom (wash)
-    const double dx = x - 470, dy = y - 120;
+    const double dx = x - 590, dy = y - 120;
     if (dx * dx + dy * dy < 55 * 55) return 252;  // the moon: bare paper
     if (dx * dx + dy * dy < 70 * 70) v -= 12;     // halo wash
     struct Layer { double base, amp, freq, phase; int tone; };
@@ -115,7 +115,7 @@ int InkPixel(int x, int y) {
 }
 
 std::string FakeInkPng() {
-    constexpr int kW = 640, kH = 480;
+    constexpr int kW = 800, kH = 476;
     std::string raw;
     raw.reserve((kW * 3 + 1) * kH);
     for (int y = 0; y < kH; ++y) {
@@ -218,8 +218,10 @@ std::string Row(const char* instance_id, double amount) {
     return buf;
 }
 
-std::string Bill(const std::string& rows) {
-    return "{\"Code\":\"Success\",\"Message\":\"Successful!\",\"Success\":true,\"Data\":{\"Items\":{\"Item\":[" + rows + "]}}}";
+std::string Bill(const std::string& rows, const char* next_token = nullptr) {
+    const std::string token = next_token ? std::string("\"NextToken\":\"") + next_token + "\"," : "";
+    return "{\"Code\":\"Success\",\"Message\":\"Successful!\",\"Success\":true,\"Data\":{" + token +
+           "\"Items\":{\"Item\":[" + rows + "]}}}";
 }
 
 std::string QueryParam(const std::string& url, const std::string& key) {
@@ -254,10 +256,14 @@ std::string CannedBoard(const std::string& url, int balance_calls) {
         return Bill(Row("1;k;qwen-flash;context_0-128k_input_token;;0", 0.0156) + "," +
                     Row("1;k;qwen-flash;context_0-128k_output_token;;0", 0.0062));
     }
+    // Yesterday spans two pages (like a busy day): the second one holds the rest of the same models and a new one.
+    if (!QueryParam(url, "NextToken").empty()) {
+        return Bill(Row("1;k;qwen-image-2.0-pro;images;;0", 4.0) + "," + Row("1;k;qwen-max;context_0-128k_output_token;;0", 1.5));
+    }
     return Bill(Row("1;k;qwen-image-2.0-pro;images;;0", 16.0) + "," + Row("1;k;wan2.2-t2i-flash;images;;0", 0.14) + "," +
                 Row("1;k;qwen3-asr-flash;duration;;0", 0.02046) + "," +
                 Row("cn-beijing;sfm_plugin;;web-search-turbo", 0.018) + "," +
-                Row("1;k;qwen-flash;context_0-128k_input_token;;0", 0.0053454));
+                Row("1;k;qwen-flash;context_0-128k_input_token;;0", 0.0053454), "p2");
 }
 
 class SimChatPlatform : public ai::ChatPlatform {

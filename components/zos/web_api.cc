@@ -47,8 +47,11 @@ std::string AppsJson(Shell& shell) {
         App& app = shell.app(i);
         cJSON* item = cJSON_CreateObject();
         cJSON_AddStringToObject(item, "id", app.id());
-        cJSON_AddStringToObject(item, "title", app.title());
+        cJSON_AddStringToObject(item, "title", app.web_title());
         cJSON_AddStringToObject(item, "summary", app.summary());
+        if (app.web_page() != nullptr) {
+            cJSON_AddStringToObject(item, "page", app.web_page());
+        }
         cJSON* fields = cJSON_AddArrayToObject(item, "fields");
         for (size_t f = 0; f < app.config_field_count(); ++f) {
             const ConfigField& field = app.config_fields()[f];

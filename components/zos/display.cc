@@ -99,6 +99,18 @@ esp_err_t Display::ShowPartialRaw(const Rect& rect, const uint8_t* data,
     return err;
 }
 
+esp_err_t Display::PartialOn4bpp(const Rect& rect, const uint8_t* old_pixels, const uint8_t* new_pixels,
+                                 size_t size) {
+    const zectrix_epd_rect_t area = {rect.x, rect.y, rect.w, rect.h};
+    esp_err_t err = zectrix_epd_power_on(epd_);
+    if (err == ESP_OK) err = zectrix_epd_seed_bw_region(epd_, &area, old_pixels, size);
+    if (err == ESP_OK) err = zectrix_epd_refresh_partial_1bpp(epd_, &area, new_pixels, size);
+    const esp_err_t off = zectrix_epd_power_off(epd_);
+    if (err != ESP_OK) ESP_LOGW(kTag, "partial refresh on 4bpp failed: %s", esp_err_to_name(err));
+    base_valid_ = false;  // the shell's next draw starts with a full refresh
+    return err == ESP_OK ? off : err;
+}
+
 esp_err_t Display::Show4bpp(const uint8_t* data, size_t size) {
     // A white 1bpp full refresh first keeps the gray image free of history.
     std::memset(patch_, 0xFF, sizeof(patch_));

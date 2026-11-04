@@ -216,7 +216,7 @@ bool PngToGray16(const std::string& png_bytes, std::vector<uint8_t>* out, std::s
         *error = "图片解码失败: " + why;
         return false;
     }
-    // The model may paint a paper-coloured frame: crop 2% on every side, then area-average to the panel size.
+    // The model may paint a paper-coloured frame: crop 2% on every side, then area-average to the content size.
     const int cx = static_cast<int>(img.width * 2 / 100), cy = static_cast<int>(img.height * 2 / 100);
     const int cw = static_cast<int>(img.width) - 2 * cx, ch = static_cast<int>(img.height) - 2 * cy;
     if (cw < kWidth / 2 || ch < kHeight / 2) {

@@ -1,6 +1,9 @@
 #include <memory>
 
 #include "apps/ai_chat_app.h"
+#include "apps/photo/photo_backend.h"
+#include "apps/photo/photo_web_esp.h"
+#include "apps/photos_app.h"
 #include "apps/ai_ink_app.h"
 #include "apps/clock_weather_app.h"
 #include "apps/epd_demo_app.h"
@@ -44,7 +47,11 @@ extern "C" void app_main(void) {
         return;
     }
 
+    photos::Store::Get().Init(NewPhotoBackend());
+    RegisterPhotoRoutes(web);
+
     shell.Register(std::make_unique<ClockWeatherApp>());
+    shell.Register(std::make_unique<PhotosApp>());
     shell.Register(std::make_unique<AiChatApp>(board));
     shell.Register(std::make_unique<AiInkApp>(board));
     shell.Register(std::make_unique<TokenBoardApp>());

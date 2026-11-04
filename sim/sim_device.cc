@@ -16,7 +16,11 @@
 #include <sstream>
 #include <thread>
 
+#include "apps/ai/ai_chat.h"
 #include "apps/ai_chat_app.h"
+#include "apps/photo/photo_backend.h"
+#include "apps/photo/photo_web.h"
+#include "apps/photos_app.h"
 #include "apps/ai_ink_app.h"
 #include "apps/clock_weather_app.h"
 #include "apps/epd_demo_app.h"
@@ -30,6 +34,24 @@
 #include "zos/web_server.h"
 
 namespace {
+
+std::string Base64Decode(const std::string& text) {
+    static const std::string kTable = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string out;
+    uint32_t acc = 0;
+    int bits = 0;
+    for (const char c : text) {
+        const size_t v = kTable.find(c);
+        if (v == std::string::npos) continue;  // padding and anything else
+        acc = (acc << 6) | static_cast<uint32_t>(v);
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            out.push_back(static_cast<char>((acc >> bits) & 0xFF));
+        }
+    }
+    return out;
+}
 
 void WaitQuiet() {
     using namespace std::chrono;
@@ -82,7 +104,9 @@ int main(int argc, char** argv) {
 
     board.Init();
     display.Init();
+    photos::Store::Get().Init(NewPhotoBackend());
     shell.Register(std::make_unique<ClockWeatherApp>());
+    shell.Register(std::make_unique<PhotosApp>());
     shell.Register(std::make_unique<AiChatApp>(board));
     shell.Register(std::make_unique<AiInkApp>(board));
     shell.Register(std::make_unique<TokenBoardApp>());
@@ -135,6 +159,36 @@ int main(int argc, char** argv) {
             std::printf("JSON %s\n", zos::web_api::StatusJson(shell).c_str());
         } else if (cmd == "apps") {
             std::printf("JSON %s\n", zos::web_api::AppsJson(shell).c_str());
+        } else if (cmd == "photosettings") {  // photosettings [json]: read, or write when a body follows
+            std::string body;
+            std::getline(in, body);
+            if (arg.empty()) {
+                std::printf("JSON %s\n", photos::web::SettingsJson().c_str());
+            } else {
+                std::string error;
+                const int code = photos::web::SetSettings(arg + body, &error);
+                std::printf("HTTP %d %s\n", code, error.c_str());
+            }
+        } else if (cmd == "photolist") {
+            std::printf("JSON %s\n", photos::web::ListJson().c_str());
+        } else if (cmd == "photoput") {  // photoput <urlencoded title> <base64 of the 60000 bytes>
+            std::string data;
+            in >> data;
+            const std::string bytes = Base64Decode(data);
+            std::string error;
+            const int code = photos::web::Put(arg, reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size(), &error);
+            std::printf("HTTP %d %s\n", code, error.c_str());
+        } else if (cmd == "photodel") {
+            std::string error;
+            const int code = photos::web::Delete(std::atoi(arg.c_str()), &error);
+            std::printf("HTTP %d %s\n", code, error.c_str());
+        } else if (cmd == "photoget") {
+            std::vector<uint8_t> image;
+            if (!photos::web::Get(std::atoi(arg.c_str()), &image)) {
+                std::printf("HTTP 404 no such photo\n");
+            } else {
+                std::printf("B64 %s\n", ai::Base64Encode(std::string(image.begin(), image.end())).c_str());
+            }
         } else if (cmd == "config") {
             std::string body;
             std::getline(in, body);

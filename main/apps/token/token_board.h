@@ -109,7 +109,10 @@ DateParts BeijingParts(time_t t);
 
 bool ParseBalance(const std::string& body, double* amount, std::string* error);
 /** Bailian rows (ProductCode "sfm") of a DescribeInstanceBill response, summed per model. */
-bool ParseBill(const std::string& body, DayBill* out, std::string* error);
+bool ParseBill(const std::string& body, DayBill* out, std::string* error, std::string* next_token = nullptr,
+               int* total_count = nullptr);
+/** Add the rows of another page of the same day to `into` (models merged by name, highest cost first). */
+void MergeBill(const DayBill& page, DayBill* into);
 
 struct BalanceLine {
     std::string currency;  // "CNY" or "USD"
@@ -168,7 +171,7 @@ public:
 
 private:
     enum class Stage { Balance, Yesterday, Today };
-    void Request(Stage stage);
+    void Request(Stage stage, const std::string& next_token = "");
     void OnResponse(Stage stage, int status, std::string body, std::string transport_error);
     void Fail(const std::string& error);
     void Finish();
@@ -182,6 +185,8 @@ private:
     Snapshot snap_;
     Baselines baselines_;
     int interval_min_ = kDefaultIntervalMinutes;
+    DayBill pages_;                            // the bill pages of the day being fetched, merged
+    int page_count_ = 0;
     unsigned counter_ = 0;                     // nonce uniqueness within one second
 
 public:

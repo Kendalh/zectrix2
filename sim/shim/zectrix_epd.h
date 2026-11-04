@@ -22,4 +22,6 @@ esp_err_t zectrix_epd_power_off(zectrix_epd_handle_t h);
 esp_err_t zectrix_epd_refresh_full_1bpp(zectrix_epd_handle_t h, const uint8_t* fb, size_t size);
 esp_err_t zectrix_epd_refresh_partial_1bpp(zectrix_epd_handle_t h, const zectrix_epd_rect_t* rect,
                                            const uint8_t* pixels, size_t size);
+esp_err_t zectrix_epd_seed_bw_region(zectrix_epd_handle_t h, const zectrix_epd_rect_t* rect, const uint8_t* pixels,
+                                     size_t size);
 esp_err_t zectrix_epd_refresh_full_4bpp(zectrix_epd_handle_t h, const uint8_t* fb, size_t size);

@@ -197,7 +197,7 @@ void TokenBoardApp::Render(zos::Context& ctx, ZectrixCanvas& canvas, const zos::
         RenderHero(canvas, content, snap.has_balance, snap.balance, snap.today_cost, snap.hour_cost);
         const struct { const char* title; const board::DayBill* bill; bool pending; } days[2] = {
             {"昨日", &snap.yesterday, snap.loading && !snap.yesterday.ok},
-            {"今日", &snap.today, snap.loading && !snap.today.ok}};
+            {"今日(延迟)", &snap.today, snap.loading && !snap.today.ok}};
         for (int i = 0; i < 2; ++i) {
             std::vector<Row> rows;
             for (size_t m = 0; m < days[i].bill->models.size() && m < static_cast<size_t>(kMaxRows); ++m) {

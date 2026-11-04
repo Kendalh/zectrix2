@@ -1,6 +1,11 @@
 idf_component_register(SRCS
                        "app_main.cc"
                        "apps/clock_weather_app.cc"
+                       "apps/photos_app.cc"
+                       "apps/photo/photo_store.cc"
+                       "apps/photo/photo_web.cc"
+                       "apps/photo/photo_web_esp.cc"
+                       "apps/photo/photo_backend_esp.cc"
                        "apps/ai_chat_app.cc"
                        "apps/ai_ink_app.cc"
                        "apps/ai/ai_paint.cc"
@@ -22,6 +27,8 @@ idf_component_register(SRCS
                        zos
                        esp_timer
                        esp_http_client
+                       esp_http_server
+                       esp_partition
                        esp-tls
                        cjson
                        nvs_flash

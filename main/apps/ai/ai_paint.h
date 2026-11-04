@@ -1,11 +1,11 @@
 /**
  * @file ai_paint.h
- * @brief AI ink painter: speak a subject, get a 400x300 ink wash painting in the panel's 16 grays.
+ * @brief AI ink painter: speak a subject, get a 400x238 ink wash painting (the content area between header and footer) in the panel's 16 grays.
  *
  * Pipeline (one API key, Alibaba Bailian / DashScope, the same as AI Q&A): the recording is transcribed by the speech
  * model, a text model plans the scene from the subject (PlannerSystemPrompt) and writes it as an ink wash painting
  * prompt (ImagePrompt), the image model paints it, the returned PNG is downloaded and turned into the panel's packed
- * 4 bpp format (PngToGray16: area-average down to 400x300, auto-levels, 16-level Floyd-Steinberg). The result is held
+ * 4 bpp format (PngToGray16: area-average down to 400x238, auto-levels, 16-level Floyd-Steinberg). The result is held
  * in RAM; "redraw" asks the model again with the same subject.
  *
  * Everything here is hardware-free and shared with the simulator. Network and key storage go through ai::ChatPlatform
@@ -29,7 +29,7 @@ namespace ai {
 namespace paint {
 
 constexpr int kWidth = 400;
-constexpr int kHeight = 300;
+constexpr int kHeight = 238;  // the content area between header and footer
 constexpr size_t kImageBytes = kWidth * kHeight / 2;  // 4 bits per pixel, left pixel in the high nibble: 0 black .. 15 white
 constexpr size_t kMaxSubjectChars = 60;
 constexpr size_t kMaxPngBytes = 4 * 1024 * 1024;
@@ -37,7 +37,7 @@ constexpr size_t kMaxPngBytes = 4 * 1024 * 1024;
 struct PaintConfig {
     std::string url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
     std::string model = "qwen-image-2.0-pro";  // synchronous; qwen-image-3.0-pro needs a workspace-specific endpoint
-    std::string size = "640*480";              // 4:3; the API rejects anything under 512x512 pixels, so 400x300 is not possible
+    std::string size = "800*476";              // the content area's 400:238 at twice the size; the API rejects under 512x512 pixels
 };
 
 // ---- pure helpers (unit-tested) ---------------------------------------------------------------

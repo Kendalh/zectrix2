@@ -49,6 +49,8 @@ public:
     void Invalidate(const Rect& rect) override;
     void RequestFullRefresh() override { full_ = true; }
     void GoHome() override;
+    esp_err_t ShowContentImage(const uint8_t* image, size_t size) override;
+    esp_err_t UpdateContentFooter() override;
     void Wake() override;
 
     // Used by the web server (thread-safe).
@@ -73,6 +75,8 @@ private:
     };
 
     class Launcher;
+    std::vector<uint8_t> footer_bits_;        // the footer as last shown under a picture (1 bpp rows)
+    std::unique_ptr<ZectrixCanvas> scratch_;  // header/footer of ShowContentImage
 
     static void InputTaskEntry(void* arg);
     void Post(const Event& event);

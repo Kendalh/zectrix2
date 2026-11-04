@@ -82,10 +82,10 @@ void Chrome::DrawFooter(ZectrixCanvas& canvas, const KeyHints& hints,
     append("长按UP", hints.up_hold);
     append("长按DN", hints.down_hold);
     append("UP", hints.up);
-    append("DOWN", hints.down);
+    append("DN", hints.down);
     append("OK", hints.select);
 
-    const char* rule = home_rule ? "长按 OK：主页" : "长按 DOWN：关机";
+    const char* rule = home_rule ? "长按OK 主页" : "长按DN 关机";
     const int text_y = footer.y + 8;
     canvas.Text(8, text_y, left);
     const int rule_x = kWidth - 8 - canvas.TextWidth(rule);

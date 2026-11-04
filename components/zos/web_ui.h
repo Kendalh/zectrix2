@@ -26,10 +26,10 @@ const view=document.getElementById('view');
 let apps=[];
 function list(){
  view.textContent='';
- const configurable=apps.filter(a=>a.fields.length);
+ const configurable=apps.filter(a=>a.fields.length||a.page);
  if(!configurable.length){view.append($('div',{className:'hint',textContent:'暂无可配置的应用。'}));return;}
  configurable.forEach(a=>{
-  const row=$('a',{className:'row',href:'#/app/'+a.id},[$('div',{},[$('h2',{textContent:a.title}),$('div',{className:'sum',textContent:a.summary})])]);
+  const row=$('a',{className:'row',href:a.fields.length?'#/app/'+a.id:a.page},[$('div',{},[$('h2',{textContent:a.title}),$('div',{className:'sum',textContent:a.summary})])]);
   view.append($('div',{className:'card'},[row]));
  });
 }
@@ -38,6 +38,7 @@ function detail(id){
  if(!a){location.hash='#/';return;}
  view.textContent='';
  const card=$('div',{className:'card'},[$('h2',{textContent:a.title}),$('div',{className:'sum',textContent:a.summary})]);
+ if(a.page)card.append($('a',{href:a.page,textContent:'打开「'+a.title+'」页面 ›'}));
  const inputs={};
  a.fields.forEach(f=>{
   let el;

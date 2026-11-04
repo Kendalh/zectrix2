@@ -84,6 +84,15 @@ esp_err_t zectrix_epd_refresh_partial_1bpp(zectrix_epd_handle_t handle,
                                            size_t pixels_size);
 
 /**
+ * After a 16-gray refresh: declare that the rect (x and width multiples of 8) currently shows exactly `pixels`
+ * (same packed 1bpp format as partial refresh, 1=white), so that rect alone may be partially refreshed. Only valid
+ * for an area that holds nothing but pure black and pure white pixels (a header, footer, text on white), because
+ * the transition waveform only knows those two states. Anything outside the rect must not be refreshed afterwards.
+ */
+esp_err_t zectrix_epd_seed_bw_region(zectrix_epd_handle_t handle, const zectrix_epd_rect_t* rect,
+                                     const uint8_t* pixels, size_t pixels_size);
+
+/**
  * Full-screen 16-gray refresh using the calibrated SSD2683 waveform sequence.
  *
  * Format: 400x300, row-major, two pixels per byte, left pixel in the high

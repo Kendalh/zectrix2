@@ -4,6 +4,7 @@
 #include <cstdio>
 
 #include "apps/ai/ai_platform.h"
+#include "apps/photo/photo_store.h"
 #include "esp_log.h"
 #include "zos/chrome.h"
 
@@ -19,7 +20,13 @@ void CenterText(ZectrixCanvas& canvas, int y, const char* text, int scale = 1) {
 
 zos::KeyHints AiInkApp::hints() const {
     zos::KeyHints hints;
-    if (recording_) {
+    if (showing_) {  // on the picture: UP paint again, DOWN save to the album, OK speak a new subject
+        hints.up = "重画";
+        hints.select = "说话";
+        const uint32_t revision = ai::paint::PaintService::Get().GetStatus().revision;
+        hints.down = saved_revision_ == revision ? "已保存" : save_failure_ == 2 ? "相册已满"
+                     : save_failure_ == 1 ? "保存失败" : "保存";
+    } else if (recording_) {
         hints.select = "结束录音";
     } else {
         if (ai::paint::PaintService::Get().GetStatus().has_image) hints.up = "上一幅";
@@ -50,15 +57,16 @@ void AiInkApp::ShowImage(zos::Context& ctx) {
     std::vector<uint8_t> image;
     ai::paint::PaintService& service = ai::paint::PaintService::Get();
     if (!service.CopyImage(&image) || image.size() != ai::paint::kImageBytes) return;
-    shown_revision_ = service.GetStatus().revision;
-    const esp_err_t err = ctx.display().Show4bpp(image.data(), image.size());
+    const uint32_t revision = service.GetStatus().revision;
+    if (revision != shown_revision_) save_failure_ = 0;
+    shown_revision_ = revision;
+    showing_ = true;  // before the refresh: the footer of the picture shows the hints of this state
+    const esp_err_t err = ctx.ShowContentImage(image.data(), image.size());
     if (err != ESP_OK) {
         ESP_LOGE(kTag, "4bpp refresh failed: %s", esp_err_to_name(err));
         service.SetError("屏幕刷新失败");
         showing_ = false;
-        return;
     }
-    showing_ = true;
 }
 
 void AiInkApp::StartRecording(zos::Context&) {
@@ -87,15 +95,50 @@ void AiInkApp::FinishRecording(zos::Context&) {
     if (!service.AskVoice(std::move(wav), &error)) service.SetError(error);
 }
 
+void AiInkApp::SaveToAlbum(const ai::paint::Status& status) {
+    if (saved_revision_ == status.revision) return;  // already in the album: the footer says so
+    std::vector<uint8_t> image;
+    if (!ai::paint::PaintService::Get().CopyImage(&image)) {
+        save_failure_ = 1;
+        return;
+    }
+    // The album holds whole-panel pictures: centre the content-sized painting on white paper.
+    std::vector<uint8_t> frame(photos::kImageBytes, 0xFF);
+    const size_t top = (300 - ai::paint::kHeight) / 2;
+    std::copy(image.begin(), image.end(), frame.begin() + top * (400 / 2));
+    std::string error;
+    if (photos::Store::Get().Save(status.subject, frame.data(), frame.size(), &error) < 0) {
+        save_failure_ = error.find("已满") != std::string::npos ? 2 : 1;
+        return;
+    }
+    saved_revision_ = status.revision;
+    save_failure_ = 0;
+}
+
 bool AiInkApp::OnKey(zos::Context& ctx, zos::Key key) {
     ai::paint::PaintService& service = ai::paint::PaintService::Get();
-    if (showing_) {  // the picture is up: OK leaves it, UP paints it again
-        showing_ = false;
-        if (key == zos::Key::kUp) {
-            std::string error;
-            if (!service.Regenerate(&error)) service.SetError(error);
+    if (showing_) {  // the picture is up (header and footer stay): UP = paint it again, DOWN = save to the album,
+                     // OK = speak a new subject; nothing pages through anything here
+        switch (key) {
+            case zos::Key::kSelect:
+                showing_ = false;
+                StartRecording(ctx);
+                ctx.Invalidate();  // the shell redraws the page with a full refresh
+                break;
+            case zos::Key::kUp: {
+                showing_ = false;
+                std::string error;
+                if (!service.Regenerate(&error)) service.SetError(error);
+                ctx.Invalidate();
+                break;
+            }
+            case zos::Key::kDown:
+                SaveToAlbum(service.GetStatus());
+                ctx.UpdateContentFooter();  // the footer tells the result; the picture is not redrawn
+                break;
+            default:
+                break;
         }
-        ctx.Invalidate();  // the shell redraws the page with a full refresh
         return true;
     }
     if (recording_) {  // the microphone is busy: only OK ends it
@@ -178,10 +221,6 @@ void AiInkApp::Render(zos::Context& ctx, ZectrixCanvas& canvas, const zos::Rect&
 
     if (status.working) {
         CenterText(canvas, content.y + 72, "正在绘图…");
-        if (!status.subject.empty()) {
-            const std::string line = "画：" + status.subject;
-            CenterText(canvas, content.y + 98, line.c_str());
-        }
         return;
     }
 

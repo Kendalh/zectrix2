@@ -665,6 +665,25 @@ extern "C" esp_err_t zectrix_epd_refresh_full_1bpp(zectrix_epd_handle_t handle,
     return err;
 }
 
+extern "C" esp_err_t zectrix_epd_seed_bw_region(zectrix_epd_handle_t handle, const zectrix_epd_rect_t* rect,
+                                                const uint8_t* pixels, size_t pixels_size) {
+    if (handle == nullptr || rect == nullptr || pixels == nullptr || rect->x < 0 || rect->y < 0 ||
+        rect->width <= 0 || rect->height <= 0 || rect->x % 8 != 0 || rect->width % 8 != 0 ||
+        rect->x + rect->width > kWidth || rect->y + rect->height > kHeight) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    const size_t stride = static_cast<size_t>(rect->width / 8);
+    if (pixels_size != stride * static_cast<size_t>(rect->height)) return ESP_ERR_INVALID_SIZE;
+    MutexGuard guard(handle->mutex);
+    if (!guard.locked()) return ESP_FAIL;
+    for (int y = 0; y < rect->height; ++y) {
+        std::memcpy(handle->shadow + static_cast<size_t>(rect->y + y) * kBwStride + rect->x / 8,
+                    pixels + static_cast<size_t>(y) * stride, stride);
+    }
+    handle->shadow_valid = true;  // only this rect is trustworthy: the caller refreshes nothing else
+    return ESP_OK;
+}
+
 extern "C" esp_err_t zectrix_epd_refresh_partial_1bpp(
     zectrix_epd_handle_t handle, const zectrix_epd_rect_t* rect,
     const uint8_t* pixels, size_t pixels_size) {
