@@ -64,7 +64,7 @@ std::string CannedTranscript() {
     return json;
 }
 
-// ---- ink painter fakes: a canned image reply and a synthetic 800x476 ink wash PNG (stored deflate blocks) ----
+// ---- ink painter fakes: a canned image reply and a synthetic 640x480 ink wash PNG (stored deflate blocks) ----
 
 const char kFakeImageUrl[] = "https://sim.invalid/ink.png";
 
@@ -90,9 +90,9 @@ void PutChunk(std::string* png, const char* type, const std::string& body) {
 
 // Layered hills in mist, a pale moon left as paper, a dark pine at the lower left: tones from paper white to deep ink.
 int InkPixel(int x, int y) {
-    const double fx = x / 800.0, fy = y / 476.0;
+    const double fx = x / 640.0, fy = y / 480.0;
     double v = 245 - 40 * fy * fy;  // paper, a little darker toward the bottom (wash)
-    const double dx = x - 590, dy = y - 120;
+    const double dx = x - 470, dy = y - 140;
     if (dx * dx + dy * dy < 55 * 55) return 252;  // the moon: bare paper
     if (dx * dx + dy * dy < 70 * 70) v -= 12;     // halo wash
     struct Layer { double base, amp, freq, phase; int tone; };
@@ -115,7 +115,7 @@ int InkPixel(int x, int y) {
 }
 
 std::string FakeInkPng() {
-    constexpr int kW = 800, kH = 476;
+    constexpr int kW = 640, kH = 480;
     std::string raw;
     raw.reserve((kW * 3 + 1) * kH);
     for (int y = 0; y < kH; ++y) {

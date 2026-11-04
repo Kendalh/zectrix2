@@ -11,7 +11,7 @@
  * Photo album. Photos are uploaded from a phone on the device web page (/photos), which turns them into 16-gray
  * 400x300 pictures in the browser; AI ink paintings can be saved here too. The page lists the titles with a preview of
  * the selected one; OK plays it full screen in 16 grays (no header or footer), the next photo follows by itself after the
- * interval set on the web page /photos (1/5/10 min, setting "interval" of this app); UP/DOWN go to the previous/next photo, OK returns.
+ * interval set on the web page /photos (off / 5 / 10 / 15 min, setting "interval" of this app); UP/DOWN go to the previous/next photo, OK returns.
  */
 class PhotosApp : public zos::App {
 public:

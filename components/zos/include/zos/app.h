@@ -13,8 +13,6 @@
 
 namespace zos {
 
-/** Content area 400x238 (between header and footer) in packed 4 bpp. */
-constexpr size_t kContentImageBytes = 400 * 238 / 2;
 
 /** Services the shell offers to the running app. Shell thread only, except Wake(). */
 class Context {
@@ -35,13 +33,14 @@ public:
     virtual void RequestFullRefresh() = 0;
     virtual void GoHome() = 0;
     /**
-     * Show a 16-gray picture in the content area, keeping the header and the footer (the running app's
-     * title and hints()): packed 4 bpp, kContentImageBytes, high nibble = left pixel, 0 black .. 15 white.
-     * Full refresh. The app should report fullscreen() while the picture is up so the shell does not redraw.
+     * Show a whole-panel 16-gray picture (packed 4 bpp, 400x300, ZECTRIX_EPD_4BPP_FRAME_BYTES, high nibble = left
+     * pixel, 0 black .. 15 white) with the header and the footer (the running app's title and hints()) laid over its
+     * top and bottom rows. Full refresh. The app should report fullscreen() while the picture is up so the shell does
+     * not repaint.
      */
-    virtual esp_err_t ShowContentImage(const uint8_t* image, size_t size) = 0;
+    virtual esp_err_t ShowImageUnderChrome(const uint8_t* image, size_t size) = 0;
     /**
-     * While a picture of ShowContentImage is up: redraw the footer from the app's current hints() with a partial
+     * While a picture of ShowImageUnderChrome is up: redraw the footer from the app's current hints() with a partial
      * refresh of the footer only (the picture is not touched, which is much faster than a full refresh).
      */
     virtual esp_err_t UpdateContentFooter() = 0;

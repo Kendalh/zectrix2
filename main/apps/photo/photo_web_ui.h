@@ -31,8 +31,8 @@ canvas{width:100%;border:1px solid #888;background:#fff;image-rendering:pixelate
 <label>标题</label><input type="text" id="title" maxlength="40" placeholder="照片标题">
 <button id="send" disabled>上传到相册</button><span id="msg" class="st"></span></div>
 <div class="card"><h2>播放</h2>
-<label>设备上全屏播放时，多久切换到下一张</label>
-<select id="interval"><option value="1m">1 分钟</option><option value="5m">5 分钟</option><option value="10m">10 分钟</option></select>
+<label>设备上全屏播放时，多久自动切换到下一张（“不刷新”则停在当前这张，用 UP/DN 手动切换）</label>
+<select id="interval"><option value="off">不刷新</option><option value="5m">5 分钟</option><option value="10m">10 分钟</option><option value="15m">15 分钟</option></select>
 <span id="imsg" class="st"></span></div>
 <div class="card"><h2>相册 <span id="count" class="st"></span></h2><div id="list"></div>
 <canvas id="big" width="400" height="300" style="display:none"></canvas></div>

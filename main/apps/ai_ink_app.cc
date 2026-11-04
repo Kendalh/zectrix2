@@ -61,7 +61,7 @@ void AiInkApp::ShowImage(zos::Context& ctx) {
     if (revision != shown_revision_) save_failure_ = 0;
     shown_revision_ = revision;
     showing_ = true;  // before the refresh: the footer of the picture shows the hints of this state
-    const esp_err_t err = ctx.ShowContentImage(image.data(), image.size());
+    const esp_err_t err = ctx.ShowImageUnderChrome(image.data(), image.size());
     if (err != ESP_OK) {
         ESP_LOGE(kTag, "4bpp refresh failed: %s", esp_err_to_name(err));
         service.SetError("屏幕刷新失败");
@@ -102,12 +102,9 @@ void AiInkApp::SaveToAlbum(const ai::paint::Status& status) {
         save_failure_ = 1;
         return;
     }
-    // The album holds whole-panel pictures: centre the content-sized painting on white paper.
-    std::vector<uint8_t> frame(photos::kImageBytes, 0xFF);
-    const size_t top = (300 - ai::paint::kHeight) / 2;
-    std::copy(image.begin(), image.end(), frame.begin() + top * (400 / 2));
+    // The painting is a whole-panel picture, just like the album's: the header and footer were only laid over it.
     std::string error;
-    if (photos::Store::Get().Save(status.subject, frame.data(), frame.size(), &error) < 0) {
+    if (photos::Store::Get().Save(status.subject, image.data(), image.size(), &error) < 0) {
         save_failure_ = error.find("已满") != std::string::npos ? 2 : 1;
         return;
     }

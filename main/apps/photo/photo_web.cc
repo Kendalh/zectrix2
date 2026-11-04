@@ -71,7 +71,8 @@ int Delete(int id, std::string* error) {
 bool Get(int id, std::vector<uint8_t>* image) { return Store::Get().Load(id, image); }
 
 std::string SettingsJson() {
-    const std::string interval = zos::Settings("photos").GetString("interval", "5m");
+    std::string interval = zos::Settings("photos").GetString("interval", "5m");
+    if (interval != "off" && interval != "5m" && interval != "10m" && interval != "15m") interval = "5m";
     return "{\"interval\":\"" + interval + "\"}";
 }
 
@@ -80,9 +81,9 @@ int SetSettings(const std::string& json, std::string* error) {
     const cJSON* value = cJSON_GetObjectItemCaseSensitive(root, "interval");
     int code = 200;
     if (!cJSON_IsString(value) ||
-        (std::string(value->valuestring) != "1m" && std::string(value->valuestring) != "5m" &&
-         std::string(value->valuestring) != "10m")) {
-        *error = "播放间隔只能是 1m、5m 或 10m";
+        (std::string(value->valuestring) != "off" && std::string(value->valuestring) != "5m" &&
+         std::string(value->valuestring) != "10m" && std::string(value->valuestring) != "15m")) {
+        *error = "播放间隔只能是 off、5m、10m 或 15m";
         code = 400;
     } else if (!zos::Settings("photos").SetString("interval", value->valuestring)) {
         *error = "保存失败";

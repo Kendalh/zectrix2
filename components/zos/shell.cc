@@ -319,24 +319,20 @@ void Shell::PowerOff() {
     }
 }
 
-esp_err_t Shell::ShowContentImage(const uint8_t* image, size_t size) {
-    if (image == nullptr || size != kContentImageBytes) return ESP_ERR_INVALID_SIZE;
-    // Header and footer are drawn the usual way into a scratch 1 bpp canvas, then everything is packed into one
-    // 16-gray frame: black pixel = level 0, white = 15, the picture fills the rows in between.
+esp_err_t Shell::ShowImageUnderChrome(const uint8_t* image, size_t size) {
+    if (image == nullptr || size != ZECTRIX_EPD_4BPP_FRAME_BYTES) return ESP_ERR_INVALID_SIZE;
+    // The picture fills the whole panel; header and footer are drawn the usual way into a scratch 1 bpp canvas and
+    // laid over its top and bottom rows (black pixel = level 0, white = 15), covering what is underneath.
     if (!scratch_) scratch_ = std::make_unique<ZectrixCanvas>();
     scratch_->Clear();
     const Rect content = Chrome::Content();
     Chrome::DrawHeader(*scratch_, current().title(), ReadStatus());
     Chrome::DrawFooter(*scratch_, current().hints(), current_ >= 0);
-    std::vector<uint8_t> frame(ZECTRIX_EPD_4BPP_FRAME_BYTES);
+    std::vector<uint8_t> frame(image, image + size);
     const uint8_t* bits = scratch_->data();
     for (int y = 0; y < ZectrixCanvas::kHeight; ++y) {
+        if (y >= content.y && y < content.y + content.h) continue;  // the picture shows through here
         uint8_t* row = frame.data() + static_cast<size_t>(y) * (ZectrixCanvas::kWidth / 2);
-        if (y >= content.y && y < content.y + content.h) {
-            std::memcpy(row, image + static_cast<size_t>(y - content.y) * (content.w / 2),
-                        static_cast<size_t>(content.w / 2));
-            continue;
-        }
         for (int x = 0; x < ZectrixCanvas::kWidth; x += 2) {
             const auto level = [&](int px) {
                 return (bits[y * ZectrixCanvas::kStride + px / 8] >> (7 - (px & 7))) & 1 ? 15 : 0;

@@ -26,7 +26,7 @@ int Put(const std::string& encoded_title, const uint8_t* data, size_t size, std:
 int Delete(int id, std::string* error);
 bool Get(int id, std::vector<uint8_t>* image);
 std::string UrlDecode(const std::string& text);
-/** The slideshow interval ("1m", "5m" or "10m"), kept in the album app's settings; JSON {"interval":"5m"}. */
+/** The slideshow interval ("off", "5m", "10m" or "15m"), kept in the album app's settings; JSON {"interval":"5m"}. */
 std::string SettingsJson();
 /** @return an HTTP status; body is the JSON {"interval":"1m"}. */
 int SetSettings(const std::string& json, std::string* error);

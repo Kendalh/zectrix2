@@ -38,10 +38,13 @@ std::string FitOneLine(ZectrixCanvas& canvas, const std::string& text, int max_w
 }  // namespace
 
 namespace {
-// "5m" -> 5 minutes in milliseconds.
+// "off" = never switch by itself (-1); "5m", "10m", "15m" = that many minutes in milliseconds. An older or
+// unknown stored value counts as 5 minutes.
 int64_t IntervalMs(const std::string& text) {
-    const int minutes = std::atoi(text.c_str());
-    return static_cast<int64_t>(minutes > 0 ? minutes : 5) * 60 * 1000;
+    if (text == "off") return -1;
+    if (text == "10m") return 10 * 60 * 1000;
+    if (text == "15m") return 15 * 60 * 1000;
+    return 5 * 60 * 1000;
 }
 }  // namespace
 

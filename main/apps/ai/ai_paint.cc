@@ -37,7 +37,8 @@ const char kPlannerSystem[] =
     "said, use a misty morning.\n"
     "4. Add a few small fitting details (a tiny boat, a pine, bamboo, a bird, a hut, a small figure) and a foreground of water, "
     "rock or grass in a few strokes.\n"
-    "5. Say that everything is monochrome ink. No text, no calligraphy, no seals, no color, no frame or border.";
+    "5. A header bar covers the top 11% and a footer bar the bottom 10% of the picture: keep the subject and its important details away from the very top and bottom edges (sky, mist or water may run off there).\n"
+    "6. Say that everything is monochrome ink. No text, no calligraphy, no seals, no color, no frame or border.";
 const char kPosterPrefix[] = "Traditional Chinese ink wash painting (shuimo), black ink on white rice paper. ";
 const char kPosterSuffix[] =
     " Monochrome grayscale only, rich ink gradation from deep black to pale gray wash, expressive brush strokes, dry-brush "
@@ -216,7 +217,7 @@ bool PngToGray16(const std::string& png_bytes, std::vector<uint8_t>* out, std::s
         *error = "图片解码失败: " + why;
         return false;
     }
-    // The model may paint a paper-coloured frame: crop 2% on every side, then area-average to the content size.
+    // The model may paint a paper-coloured frame: crop 2% on every side, then area-average to the panel size.
     const int cx = static_cast<int>(img.width * 2 / 100), cy = static_cast<int>(img.height * 2 / 100);
     const int cw = static_cast<int>(img.width) - 2 * cx, ch = static_cast<int>(img.height) - 2 * cy;
     if (cw < kWidth / 2 || ch < kHeight / 2) {
