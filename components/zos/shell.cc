@@ -163,9 +163,12 @@ void Shell::Open(int index) {
     current().OnLeave(*this);
     current_ = index;
     callback_app_ = current_;
-    full_ = true;  // a page switch always repaints the whole panel
-    dirty_ = false;
-    dirty_rect_ = {};
+    // Partial refresh of the whole screen: header and footer are redrawn too.
+    // The Display still inserts a full refresh every few partials (ghosting).
+    full_ = false;
+    dirty_ = true;
+    dirty_rect_ = Chrome::Content();
+    status_drawn_ = hints_drawn_ = false;
     current().OnEnter(*this);
 }
 

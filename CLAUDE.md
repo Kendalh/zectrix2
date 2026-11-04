@@ -25,6 +25,9 @@ Chinese font on the panel are unverified); the PC simulator is the only runtime 
   the shell does the work in `PollTimeSync()`.
 - Keys are identical everywhere: UP/DOWN/OK clicks go to the app; hold OK 1.5 s = Home; hold DOWN 3 s = power off.
   Apps never see the holds. Footer shows only non-obvious key notes.
+- **Design rule: partial refresh wherever possible**, including page switches (`Shell::Open` sends the whole
+  screen as one partial). Full refresh only at boot, every `partial_limit` partials (ghosting), after full-screen
+  apps, or on explicit `RequestFullRefresh()`. Do not add new unconditional full refreshes.
 - The shell draws header (battery, Wi-Fi) and footer; an app draws only the content area and calls
   `ctx.Invalidate(rect)`. Display decides partial vs full: x/width widened to 8 px, a full 1bpp refresh must
   come first (and after any 4bpp image), full refresh after `partial_limit` partials (the clock raises it to 255

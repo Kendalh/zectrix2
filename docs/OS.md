@@ -33,9 +33,12 @@ move; apps provide them through `App::hints()`.
 ## Refresh policy
 
 Apps draw into a 1bpp canvas and call `ctx.Invalidate(rect)`. The shell
-refreshes that rectangle partially (x/width widened to 8 px), or fully on page
-switches, after `Display::partial_limit` partials (default 8, the clock raises
-it), or when the app calls `ctx.RequestFullRefresh()`. Full-screen apps (the
+refreshes that rectangle partially (x/width widened to 8 px). **Design rule:
+use partial refresh whenever possible**, including page switches (the whole
+screen is sent as one partial). A full refresh happens only at boot, after
+`Display::partial_limit` partials (default 8, the clock raises it) to clear
+ghosting, when a full-screen app returns, or when the app calls
+`ctx.RequestFullRefresh()`. Full-screen apps (the
 display demo scenes) own the panel while `fullscreen()` is true; the shell
 repaints everything when they return.
 
