@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>ZECTRIX OS simulator</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#e9e6df;margin:0;padding:24px;color:#222}
+.wrap{display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start}
+.device{background:#f7f5ef;border-radius:18px;padding:22px;box-shadow:0 4px 18px #0003}
+#screen{display:block;width:800px;height:600px;image-rendering:pixelated;background:#fff;border:10px solid #1d1d1d;border-radius:6px}
+.buttons{display:flex;justify-content:center;gap:18px;margin-top:18px}
+.btn{width:120px;padding:14px 0;border-radius:10px;border:2px solid #444;background:#fff;font-size:16px;cursor:pointer;user-select:none;text-align:center}
+.btn.down{background:#ffd600}.btn small{display:block;font-size:11px;color:#666;margin-top:3px}
+.side{min-width:280px;max-width:360px;font-size:14px;line-height:1.7}
+#log{font:12px/1.6 ui-monospace,monospace;background:#fff;border:1px solid #ccc;border-radius:6px;padding:8px;height:240px;overflow:auto;white-space:pre-wrap}
+#err{color:#b00020}.bad{color:#b00020;font-weight:bold}
+</style></head><body>
+<h2 style="margin-top:0">ZECTRIX OS simulator</h2>
+<div class="wrap">
+ <div class="device"><div id="off" style="display:none;background:#b00020;color:#fff;padding:8px;border-radius:6px;margin-bottom:10px">Device is powered off (hold DOWN 3 s). <button id="poweron">Power on</button></div><img id="screen" alt="screen">
+  <div class="buttons">
+   <div class="btn" id="b-up">UP<small>&uarr; click</small></div>
+   <div class="btn" id="b-down">DOWN<small>&darr; click &middot; hold 3 s: power off</small></div>
+   <div class="btn" id="b-ok">OK (BOOT)<small>Enter &middot; hold 1.5 s: Home</small></div>
+  </div></div>
+ <div class="side">
+  <p>Refreshes &mdash; full <b id="n-full">0</b>, partial <b id="n-partial">0</b>, 16-gray <b id="n-gray">0</b>
+     <span id="n-err" class="bad"></span><br>Last: <b id="last">-</b></p>
+  <p><label><input type="checkbox" id="wifi" checked> Wi-Fi connected</label><br>
+     Battery <input type="number" id="batt" value="85" min="0" max="100" style="width:56px">%
+     <label><input type="checkbox" id="chg"> charging</label>
+     <button id="battgo">Apply</button><br>
+     <button id="reset">Reboot (settings reset)</button></p>
+  <p>Device web page: <a id="devlink" target="_blank">open</a> (works only while Wi-Fi is connected)</p>
+  <div id="err"></div>
+  <p>Keys: &uarr; &darr; = UP / DOWN, Enter or B = OK. Hold the mouse or key to long-press.</p>
+  <div id="log"></div>
+ </div></div>
+<script>
+const $=id=>document.getElementById(id);
+let busy=Promise.resolve(),count=0;
+function show(r,label){
+  $('n-full').textContent=r.headers.get('X-Full');$('n-partial').textContent=r.headers.get('X-Partial');
+  $('n-gray').textContent=r.headers.get('X-Gray');$('last').textContent=r.headers.get('X-Last');
+  const e=+r.headers.get('X-Errors');$('n-err').textContent=e?`  ${e} driver error(s)!`:'';
+  const off=r.headers.get('X-Off')==='1';$('off').style.display=off?'block':'none';
+  if(label){$('log').textContent+=`${++count}. ${label} -> ${r.headers.get('X-Last')}\n`;$('log').scrollTop=1e9;}
+}
+function send(path,label){busy=busy.then(async()=>{
+  const r=await fetch(path+(path.includes('?')?'&':'?')+'t='+Date.now());
+  if(!r.ok){$('err').textContent=await r.text();return;}
+  $('err').textContent='';$('screen').src=URL.createObjectURL(await r.blob());show(r,label);});}
+// Same timing as the board: OK clicks on release, long press at 1.5 s while held; UP/DOWN click on press, DOWN long at 3 s.
+function wire(el,key,longKey,longMs,onPress){
+  let timer=null,fired=false;
+  const down=()=>{if(timer!==null||el.classList.contains('down'))return;el.classList.add('down');fired=false;
+    if(onPress)send('/key?name='+key,key);
+    if(longKey)timer=setTimeout(()=>{fired=true;send('/key?name='+longKey,longKey);},longMs);else timer=0;};
+  const up=()=>{if(!el.classList.contains('down'))return;el.classList.remove('down');if(timer)clearTimeout(timer);
+    if(!onPress&&!fired)send('/key?name='+key,key);timer=null;};
+  el.onmousedown=down;window.addEventListener('mouseup',up);
+  return {down,up};
+}
+const up=wire($('b-up'),'up',null,0,true),dn=wire($('b-down'),'down','downhold',3000,true),ok=wire($('b-ok'),'ok','okhold',1500,false);
+const map={ArrowUp:up,ArrowDown:dn,Enter:ok,b:ok,B:ok};
+addEventListener('keydown',e=>{const k=map[e.key];if(k){e.preventDefault();if(!e.repeat)k.down();}});
+addEventListener('keyup',e=>{const k=map[e.key];if(k)k.up();});
+$('wifi').onchange=e=>send('/net?state='+(e.target.checked?'up':'down'),'wifi '+(e.target.checked?'up':'down'));
+$('battgo').onclick=()=>send(`/battery?percent=${$('batt').value}&charging=${$('chg').checked?1:0}`,'battery');
+$('poweron').onclick=()=>{$('wifi').checked=true;send('/reset','power on');};
+$('reset').onclick=()=>{$('wifi').checked=true;send('/reset','reboot');};
+$('devlink').href=`http://${location.hostname}:8080/`;
+send('/screen');
+</script></body></html>

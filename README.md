@@ -34,6 +34,10 @@ driver reference, not the complete NOTE4 consumer firmware or cloud service.
 - Long-press DOWN for 3 seconds to clear the panel and shut down
 - MIT licensed by ZECTRIX Lab
 
+> [!NOTE]
+> The firmware is now an app platform (app selector, unified header/footer,
+> keys, web configuration, partial refresh). See [docs/OS.md](docs/OS.md).
+
 ## Quick start
 
 Requirements: ESP-IDF 5.4 or later and a ZECTRIX NOTE4 4.2-inch ESP32-S3

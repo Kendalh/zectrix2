@@ -4,6 +4,7 @@
 #include <cstdlib>
 
 #include "zectrix_ascii_font_8x16.h"
+#include "zectrix_cjk_font_16.h"
 
 void ZectrixCanvas::Clear(bool white) {
     pixels_.fill(white ? 0xff : 0x00);
@@ -65,29 +66,83 @@ void ZectrixCanvas::Line(int x0, int y0, int x1, int y1, bool black) {
     }
 }
 
+namespace {
+
+struct Glyph {
+    const uint16_t* rows;
+    int width;
+};
+
+// Decodes one UTF-8 character and returns the pointer after it.
+const char* NextCodePoint(const char* text, uint32_t* code_point) {
+    const unsigned char lead = static_cast<unsigned char>(*text);
+    int extra = 0;
+    uint32_t value = lead;
+    if (lead >= 0xF0) {
+        extra = 3;
+        value = lead & 0x07;
+    } else if (lead >= 0xE0) {
+        extra = 2;
+        value = lead & 0x0F;
+    } else if (lead >= 0xC0) {
+        extra = 1;
+        value = lead & 0x1F;
+    }
+    ++text;
+    for (; extra > 0 && (static_cast<unsigned char>(*text) & 0xC0) == 0x80;
+         --extra, ++text) {
+        value = (value << 6) | (static_cast<unsigned char>(*text) & 0x3F);
+    }
+    *code_point = extra == 0 ? value : '?';
+    return text;
+}
+
+// ASCII from the proportional 8x16 font, everything else from the generated
+// 16x16 CJK table; unknown characters draw as '?'.
+Glyph FindGlyph(uint32_t code_point) {
+    if (code_point > 0x7F) {
+        size_t low = 0;
+        size_t high = sizeof(kZectrixCjkFont16) / sizeof(kZectrixCjkFont16[0]);
+        while (low < high) {
+            const size_t mid = (low + high) / 2;
+            if (kZectrixCjkFont16[mid].code_point < code_point) {
+                low = mid + 1;
+            } else {
+                high = mid;
+            }
+        }
+        if (low < sizeof(kZectrixCjkFont16) / sizeof(kZectrixCjkFont16[0]) &&
+            kZectrixCjkFont16[low].code_point == code_point) {
+            return {kZectrixCjkFont16[low].rows, 16};
+        }
+        code_point = '?';
+    }
+    if (code_point < 0x20 || code_point > 0x7e) {
+        code_point = '?';
+    }
+    const size_t index = code_point - 0x20;
+    return {kZectrixAsciiFont8x16[index], kZectrixAsciiFontWidths[index]};
+}
+
+}  // namespace
+
 void ZectrixCanvas::Text(int x, int y, const char* text, int scale,
                          bool inverted) {
     if (text == nullptr || scale <= 0) {
         return;
     }
     int cursor_x = x;
-    for (const unsigned char* cursor =
-             reinterpret_cast<const unsigned char*>(text);
-         *cursor != '\0'; ++cursor) {
-        unsigned char code = *cursor;
-        if (code < 0x20 || code > 0x7e) {
-            code = '?';
-        }
-        const size_t glyph_index = code - 0x20;
-        const uint16_t* glyph = kZectrixAsciiFont8x16[glyph_index];
-        const int glyph_width = kZectrixAsciiFontWidths[glyph_index];
+    while (*text != '\0') {
+        uint32_t code_point;
+        text = NextCodePoint(text, &code_point);
+        const Glyph glyph = FindGlyph(code_point);
         if (inverted) {
-            FillRect(cursor_x, y, glyph_width * scale, 16 * scale, true);
+            FillRect(cursor_x, y, glyph.width * scale, 16 * scale, true);
         }
         for (int row = 0; row < 16; ++row) {
-            for (int column = 0; column < glyph_width; ++column) {
+            for (int column = 0; column < glyph.width; ++column) {
                 const bool set =
-                    (glyph[row] & (1U << (15 - column))) != 0;
+                    (glyph.rows[row] & (1U << (15 - column))) != 0;
                 if (!set && !inverted) {
                     continue;
                 }
@@ -95,7 +150,7 @@ void ZectrixCanvas::Text(int x, int y, const char* text, int scale,
                          scale, scale, inverted ? !set : true);
             }
         }
-        cursor_x += glyph_width * scale;
+        cursor_x += glyph.width * scale;
     }
 }
 
@@ -108,16 +163,11 @@ int ZectrixCanvas::TextWidth(const char* text, int scale) const {
     if (text == nullptr || scale <= 0) {
         return 0;
     }
-
     int width = 0;
-    for (const unsigned char* cursor =
-             reinterpret_cast<const unsigned char*>(text);
-         *cursor != '\0'; ++cursor) {
-        unsigned char code = *cursor;
-        if (code < 0x20 || code > 0x7e) {
-            code = '?';
-        }
-        width += kZectrixAsciiFontWidths[code - 0x20] * scale;
+    while (*text != '\0') {
+        uint32_t code_point;
+        text = NextCodePoint(text, &code_point);
+        width += FindGlyph(code_point).width * scale;
     }
     return width;
 }
