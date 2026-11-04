@@ -644,7 +644,13 @@ static_assert(Fnv1a32(kVendorGray4Waveform) == 0x54F54E58u,
 // index, so no new drive values are invented.
 constexpr std::array<uint8_t, kWaveformSize> MakeVendorGray4TrimmedWaveform(
         size_t dropped_records) {
-    std::array<uint8_t, kWaveformSize> waveform = kVendorGray4Waveform;
+    // Element-wise copy on purpose: with GCC 15 a whole-array copy of this
+    // constexpr table that is then modified lets the edits leak back into
+    // kVendorGray4Waveform during constant evaluation.
+    std::array<uint8_t, kWaveformSize> waveform = {};
+    for (size_t copy_index = 0; copy_index < kWaveformSize; ++copy_index) {
+        waveform[copy_index] = kVendorGray4Waveform[copy_index];
+    }
     if (dropped_records == 0 || dropped_records >= kRecordsPerTable) {
         return waveform;
     }
@@ -699,7 +705,13 @@ static_assert(kVendorGray4NoResetWaveform[kAnalogConfigSize + kTableSize] ==
 // base image.
 constexpr std::array<uint8_t, kWaveformSize>
 MakeVendorGray16UnitWaveform() {
-    std::array<uint8_t, kWaveformSize> waveform = kVendorGray4Waveform;
+    // Element-wise copy on purpose: with GCC 15 a whole-array copy of this
+    // constexpr table that is then modified lets the edits leak back into
+    // kVendorGray4Waveform during constant evaluation.
+    std::array<uint8_t, kWaveformSize> waveform = {};
+    for (size_t copy_index = 0; copy_index < kWaveformSize; ++copy_index) {
+        waveform[copy_index] = kVendorGray4Waveform[copy_index];
+    }
     for (size_t code = 0; code < 4; ++code) {
         // Code tables occupy table slots 1..4; tables 0 and 5 stay vendor.
         const size_t table_begin =
@@ -902,7 +914,13 @@ constexpr VendorGraySpec kVendorHoldSpec = {5, 5, 0x00};
 // code slots are only interchangeable containers if the whole record travels.
 constexpr std::array<uint8_t, kWaveformSize> MakeVendorCodeWaveform(
         const std::array<VendorGraySpec, 4>& codes) {
-    std::array<uint8_t, kWaveformSize> waveform = kVendorGray4Waveform;
+    // Element-wise copy on purpose: with GCC 15 a whole-array copy of this
+    // constexpr table that is then modified lets the edits leak back into
+    // kVendorGray4Waveform during constant evaluation.
+    std::array<uint8_t, kWaveformSize> waveform = {};
+    for (size_t copy_index = 0; copy_index < kWaveformSize; ++copy_index) {
+        waveform[copy_index] = kVendorGray4Waveform[copy_index];
+    }
     for (size_t code = 0; code < 4; ++code) {
         const size_t destination_begin =
             kAnalogConfigSize + (code + 1) * kTableSize;
