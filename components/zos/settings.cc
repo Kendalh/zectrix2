@@ -128,6 +128,8 @@ bool Settings::SetField(const ConfigField& field, const std::string& value) {
         case ConfigField::Type::kChoice:
             return ChoiceAllowed(field.choices, value) &&
                    SetString(field.key, value.c_str());
+        case ConfigField::Type::kSecret:
+            return value.empty() || (value.size() <= 255 && SetString(field.key, value.c_str()));
         case ConfigField::Type::kString:
             return value.size() <= 63 && SetString(field.key, value.c_str());
     }

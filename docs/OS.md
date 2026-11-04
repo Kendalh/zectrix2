@@ -28,7 +28,8 @@ move; apps provide them through `App::hints()`.
 | UP / DOWN click | app-defined (Home: move selection) |
 | OK click | app-defined (Home: open app) |
 | OK hold 1.5 s | back to Home |
-| DOWN hold 3 s | power off |
+| DOWN hold 3 s | power off, on the app list only (inside an app the hold is ignored) |
+| UP / DOWN hold 1 s | optional `Key::kUpHold` / `kDownHold` for apps (AI chat: new session / session list); return true from `OnKey` to take it |
 
 ## Refresh policy
 
@@ -49,6 +50,8 @@ repaints everything when they return.
 2. Optionally return `ConfigField`s; the device web page and
    `POST /api/apps/<id>/config` appear automatically, values live in NVS
    namespace `zos_<id>` (`ctx.settings()`).
+   A `kSecret` field (API keys) is never sent back to the web page; saving it
+   empty keeps the stored value.
 3. `shell.Register(std::make_unique<MyApp>())` in `main/app_main.cc` and add
    the source to `main/CMakeLists.txt`.
 
@@ -64,6 +67,8 @@ one shows its form (`#/app/<id>`). Wi-Fi itself is set up from the 配网 app
 | App | Notes |
 | --- | --- |
 | 时钟天气 (CLOCK) | big HH:MM with one partial refresh a minute (full on the hour); current weather and a 4-day forecast shown as icons (Font Awesome bitmaps, `tools/generate_weather_icons.py`) from Open-Meteo (no key), fetched on a worker task only while Wi-Fi is up and the data is older than the interval; city by name (geocoded once), zone, 12/24 h, date and interval are web-configurable; OK refreshes |
+| AI 问答 (AICHAT) | Alibaba Bailian Qwen, ported from the youn-ink project. Spoken questions: OK starts the ES8311 microphone (16 kHz mono, up to 20 s, into PSRAM), OK again stops; `qwen3-asr-flash` transcribes, `qwen-flash` answers (non-streaming, whole answer at once). Sessions with remembered context (`apps/ai/ai_chat.*`, hardware-free, shared with the simulator); hold UP = new session, hold DOWN = session list (new / switch / delete). The Bailian API Key is a secret field on the web page |
+| TOKEN 看板 (TOKEN) | AI balance and cost (`apps/token/token_board.*`): Alibaba Bailian (BSS OpenAPI: balance, yesterday/today by model; today/this hour are estimated from the balance) and DeepSeek (balance only); UP/DOWN switch provider, OK refreshes; data is fetched on entering when older than the interval (10/30/60 min), never in the background. Progress bars are dithered grays. AccessKey ID/Secret, DeepSeek key and interval on the web page |
 | WI-FI SETUP | shows the connection; OK starts the provisioning hotspot |
 | E-PAPER DEMO | the original full / partial / 16-gray scenes |
 

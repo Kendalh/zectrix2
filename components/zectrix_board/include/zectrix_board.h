@@ -26,6 +26,7 @@ enum class ZectrixButton : uint8_t {
 enum class ZectrixButtonAction : uint8_t {
     kClick = 0,
     kLongPress,
+    kHold,  ///< UP/DOWN held 1 s (DOWN still sends kLongPress at 3 s)
 };
 
 struct ZectrixButtonEvent {
@@ -67,6 +68,7 @@ private:
         TickType_t pressed_at = 0;
         bool armed = false;
         bool long_sent = false;
+        bool hold_sent = false;
     };
 
     static void ButtonTaskEntry(void* arg);

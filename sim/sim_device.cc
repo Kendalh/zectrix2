@@ -16,8 +16,10 @@
 #include <sstream>
 #include <thread>
 
+#include "apps/ai_chat_app.h"
 #include "apps/clock_weather_app.h"
 #include "apps/epd_demo_app.h"
+#include "apps/token_board_app.h"
 #include "apps/wifi_setup_app.h"
 #include "sim_platform.h"
 #include "zos/display.h"
@@ -79,6 +81,8 @@ int main(int argc, char** argv) {
     board.Init();
     display.Init();
     shell.Register(std::make_unique<ClockWeatherApp>());
+    shell.Register(std::make_unique<AiChatApp>(board));
+    shell.Register(std::make_unique<TokenBoardApp>());
     shell.Register(std::make_unique<WifiSetupApp>());
     shell.Register(std::make_unique<EpdDemoApp>());
     network.Init([] { shell.Wake(); }, board.rtc());
@@ -104,7 +108,9 @@ int main(int argc, char** argv) {
             else if (arg == "down") board.Press(B::kDown, A::kClick);
             else if (arg == "ok") board.Press(B::kOk, A::kClick);
             else if (arg == "okhold") board.Press(B::kOk, A::kLongPress);
-            else if (arg == "downhold") board.Press(B::kDown, A::kLongPress);
+            else if (arg == "uphold") board.Press(B::kUp, A::kHold);
+            else if (arg == "downhold") board.Press(B::kDown, A::kHold);
+            else if (arg == "downlong") board.Press(B::kDown, A::kLongPress);
             else { std::printf("ERR unknown key\n"); std::fflush(stdout); continue; }
             WaitQuiet();
             ReplyFrame(out_dir.c_str(), &frame);

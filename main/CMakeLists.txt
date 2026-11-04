@@ -1,6 +1,13 @@
 idf_component_register(SRCS
                        "app_main.cc"
                        "apps/clock_weather_app.cc"
+                       "apps/ai_chat_app.cc"
+                       "apps/token_board_app.cc"
+                       "apps/ai/ai_chat.cc"
+                       "apps/ai/ai_platform_esp.cc"
+                       "apps/ai/voice_recorder.cc"
+                       "apps/ai/voice_recorder_esp.cc"
+                       "apps/token/token_board.cc"
                        "apps/weather/weather.cc"
                        "apps/weather/weather_http_esp.cc"
                        "apps/epd_demo_app.cc"

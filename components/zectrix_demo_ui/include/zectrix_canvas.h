@@ -16,6 +16,8 @@ public:
     void Clear(bool white = true);
     void Pixel(int x, int y, bool black);
     void FillRect(int x, int y, int width, int height, bool black);
+    /** Gray by ordered dithering: level 0 = white .. 16 = black (8 = 50%). */
+    void FillGray(int x, int y, int width, int height, int level);
     void Rect(int x, int y, int width, int height, bool black = true);
     void Line(int x0, int y0, int x1, int y1, bool black = true);
     void Text(int x, int y, const char* text, int scale = 1,

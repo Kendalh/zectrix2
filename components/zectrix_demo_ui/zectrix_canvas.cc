@@ -36,6 +36,17 @@ void ZectrixCanvas::FillRect(int x, int y, int width, int height,
     }
 }
 
+void ZectrixCanvas::FillGray(int x, int y, int width, int height, int level) {
+    // 4x4 Bayer thresholds: a pixel is black when level exceeds its threshold.
+    static constexpr uint8_t kBayer[4][4] = {
+        {0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}};
+    for (int row = y; row < y + height; ++row) {
+        for (int col = x; col < x + width; ++col) {
+            Pixel(col, row, level > kBayer[row & 3][col & 3]);
+        }
+    }
+}
+
 void ZectrixCanvas::Rect(int x, int y, int width, int height, bool black) {
     Line(x, y, x + width - 1, y, black);
     Line(x, y + height - 1, x + width - 1, y + height - 1, black);

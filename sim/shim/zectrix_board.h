@@ -14,7 +14,7 @@ struct ChargeStatus {
 };
 
 enum class ZectrixButton : uint8_t { kUp = 0, kDown, kOk };
-enum class ZectrixButtonAction : uint8_t { kClick = 0, kLongPress };
+enum class ZectrixButtonAction : uint8_t { kClick = 0, kLongPress, kHold };
 
 struct ZectrixButtonEvent {
     ZectrixButton button = ZectrixButton::kOk;

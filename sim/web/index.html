@@ -47,18 +47,19 @@ function send(path,label){busy=busy.then(async()=>{
   const r=await fetch(path+(path.includes('?')?'&':'?')+'t='+Date.now());
   if(!r.ok){$('err').textContent=await r.text();return;}
   $('err').textContent='';$('screen').src=URL.createObjectURL(await r.blob());show(r,label);});}
-// Same timing as the board: OK clicks on release, long press at 1.5 s while held; UP/DOWN click on press, DOWN long at 3 s.
-function wire(el,key,longKey,longMs,onPress){
-  let timer=null,fired=false;
-  const down=()=>{if(timer!==null||el.classList.contains('down'))return;el.classList.add('down');fired=false;
+// Same timing as the board: OK clicks on release, long press at 1.5 s while held; UP/DOWN click on press,
+// hold at 1 s (UP, DOWN) and DOWN long at 3 s. `holds` = [[key, ms], ...].
+function wire(el,key,holds,onPress){
+  let timers=[],fired=false,isDown=false;
+  const down=()=>{if(isDown)return;isDown=true;el.classList.add('down');fired=false;
     if(onPress)send('/key?name='+key,key);
-    if(longKey)timer=setTimeout(()=>{fired=true;send('/key?name='+longKey,longKey);},longMs);else timer=0;};
-  const up=()=>{if(!el.classList.contains('down'))return;el.classList.remove('down');if(timer)clearTimeout(timer);
-    if(!onPress&&!fired)send('/key?name='+key,key);timer=null;};
+    timers=holds.map(([k,ms])=>setTimeout(()=>{fired=true;send('/key?name='+k,k);},ms));};
+  const up=()=>{if(!isDown)return;isDown=false;el.classList.remove('down');timers.forEach(clearTimeout);timers=[];
+    if(!onPress&&!fired)send('/key?name='+key,key);};
   el.onmousedown=down;window.addEventListener('mouseup',up);
   return {down,up};
 }
-const up=wire($('b-up'),'up',null,0,true),dn=wire($('b-down'),'down','downhold',3000,true),ok=wire($('b-ok'),'ok','okhold',1500,false);
+const up=wire($('b-up'),'up',[['uphold',1000]],true),dn=wire($('b-down'),'down',[['downhold',1000],['downlong',3000]],true),ok=wire($('b-ok'),'ok',[['okhold',1500]],false);
 const map={ArrowUp:up,ArrowDown:dn,Enter:ok,b:ok,B:ok};
 addEventListener('keydown',e=>{const k=map[e.key];if(k){e.preventDefault();if(!e.repeat)k.down();}});
 addEventListener('keyup',e=>{const k=map[e.key];if(k)k.up();});

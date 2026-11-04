@@ -22,6 +22,7 @@ constexpr TickType_t kButtonPoll = pdMS_TO_TICKS(20);
 constexpr TickType_t kButtonDebounce = pdMS_TO_TICKS(40);
 constexpr TickType_t kOkLongPress = pdMS_TO_TICKS(1500);
 constexpr TickType_t kDownLongPress = pdMS_TO_TICKS(3000);
+constexpr TickType_t kHoldPress = pdMS_TO_TICKS(1000);
 constexpr adc_channel_t kBatteryAdcChannel = ADC_CHANNEL_3;
 
 struct ButtonDefinition {
@@ -43,6 +44,10 @@ TickType_t LongPressTicks(ZectrixButton button) {
         return kOkLongPress;
     }
     return portMAX_DELAY;
+}
+
+TickType_t HoldTicks(ZectrixButton button) {
+    return button == ZectrixButton::kOk ? portMAX_DELAY : kHoldPress;
 }
 
 bool ClickOnPress(ZectrixButton button) {
@@ -241,6 +246,7 @@ void ZectrixBoard::ButtonTask() {
                     if (state.armed) {
                         state.pressed_at = now;
                         state.long_sent = false;
+                        state.hold_sent = false;
                         if (ClickOnPress(definition.button)) {
                             const ZectrixButtonEvent event = {
                                 definition.button,
@@ -256,6 +262,14 @@ void ZectrixBoard::ButtonTask() {
                         definition.button, ZectrixButtonAction::kClick};
                     xQueueSend(button_queue_, &event, 0);
                 }
+            }
+
+            if (state.armed && state.stable_level == 0 && !state.hold_sent &&
+                now - state.pressed_at >= HoldTicks(definition.button)) {
+                state.hold_sent = true;
+                const ZectrixButtonEvent event = {definition.button,
+                                                  ZectrixButtonAction::kHold};
+                xQueueSend(button_queue_, &event, 0);
             }
 
             if (state.armed && state.stable_level == 0 &&

@@ -22,7 +22,8 @@ bool SameText(const char* a, const char* b) {
 
 bool SameHints(const KeyHints& a, const KeyHints& b) {
     return SameText(a.up, b.up) && SameText(a.down, b.down) &&
-           SameText(a.select, b.select);
+           SameText(a.select, b.select) && SameText(a.up_hold, b.up_hold) &&
+           SameText(a.down_hold, b.down_hold);
 }
 
 int WifiLevel(int rssi) {
@@ -248,7 +249,8 @@ void Shell::Dispatch(const Event& event) {
             }
             break;
         case Event::kPowerOff:
-            PowerOff();
+            if (current_ < 0) PowerOff();  // only on the app list; inside an app the hold is ignored
+            break;
         case Event::kWake:
             network_.PollTimeSync();
             if (network_.connected() && !network_.config_mode()) web_.Start(*this);
@@ -270,7 +272,11 @@ void Shell::InputTaskEntry(void* arg) {
     while (true) {
         if (!shell->board_.WaitButton(&raw, portMAX_DELAY)) continue;
         Event event = {Event::kKey, Key::kSelect, -1};
-        if (raw.action == ZectrixButtonAction::kLongPress) {
+        if (raw.action == ZectrixButtonAction::kHold) {
+            if (raw.button == ZectrixButton::kUp) event.key = Key::kUpHold;
+            else if (raw.button == ZectrixButton::kDown) event.key = Key::kDownHold;
+            else continue;
+        } else if (raw.action == ZectrixButtonAction::kLongPress) {
             if (raw.button == ZectrixButton::kDown) {
                 event.type = Event::kPowerOff;
             } else if (raw.button == ZectrixButton::kOk) {

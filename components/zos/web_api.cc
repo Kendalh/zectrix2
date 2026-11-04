@@ -24,6 +24,7 @@ const char* TypeName(ConfigField::Type type) {
         case ConfigField::Type::kInt: return "int";
         case ConfigField::Type::kBool: return "bool";
         case ConfigField::Type::kChoice: return "choice";
+        case ConfigField::Type::kSecret: return "secret";
         default: return "string";
     }
 }
@@ -55,8 +56,17 @@ std::string AppsJson(Shell& shell) {
             cJSON_AddStringToObject(entry, "key", field.key);
             cJSON_AddStringToObject(entry, "label", field.label);
             cJSON_AddStringToObject(entry, "type", TypeName(field.type));
-            cJSON_AddStringToObject(
-                entry, "value", shell.app_settings(i).GetField(field).c_str());
+            if (field.type == ConfigField::Type::kSecret) {
+                // Never sent back: only whether one is stored.
+                cJSON_AddStringToObject(entry, "value", "");
+                cJSON_AddBoolToObject(
+                    entry, "set",
+                    !shell.app_settings(i).GetField(field).empty());
+            } else {
+                cJSON_AddStringToObject(
+                    entry, "value",
+                    shell.app_settings(i).GetField(field).c_str());
+            }
             if (field.hint != nullptr) {
                 cJSON_AddStringToObject(entry, "hint", field.hint);
             }

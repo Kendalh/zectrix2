@@ -36,7 +36,7 @@ Chinese font on the panel are unverified); the PC simulator is the only runtime 
 - Shell is single-threaded: an event queue (Key / PowerOff / Wake / Config). Other threads only call
   `Context::Wake()` or `Shell::PostConfigChanged()`. Never block in the Wi-Fi/SNTP callback; they set a flag and
   the shell does the work in `PollTimeSync()`.
-- Keys are identical everywhere: UP/DOWN/OK clicks go to the app; hold OK 1.5 s = Home; hold DOWN 3 s = power off.
+- Keys are identical everywhere: UP/DOWN/OK clicks go to the app; hold OK 1.5 s = Home; hold DOWN 3 s = power off (app list only; apps also get UpHold/DownHold at 1 s).
   Apps never see the holds. Footer shows only non-obvious key notes.
 - **Design rule: partial refresh wherever possible**, including page switches (`Shell::Open` sends the whole
   screen as one partial). Full refresh only at boot, every `partial_limit` partials (ghosting), after full-screen
@@ -64,6 +64,19 @@ Chinese font on the panel are unverified); the PC simulator is the only runtime 
   order in `weather.h` must match the generator. The font has no degree sign, so `°` is drawn (`DrawTemp`); do not
   use the `℃` glyph (half width, looks squeezed). Layout: time left, weather card right, four forecast cards, one info line.
 - The city is a typed name, shown as typed (the geocoded name can use characters the font lacks, e.g. 東京).
+
+## AI chat + Token board (ported from the youn-ink project)
+- `main/apps/ai/ai_chat.*` and `main/apps/token/token_board.*` are the youn cores (hardware-free, namespaces `ai`/`board`),
+  shared with the simulator. Differences: the recording is passed as bytes (`HttpRequest::body_blob`, `AskVoice(id, wav)`),
+  not a file (no SPIFFS here); keys are the apps' own settings (`aichat`/`key`; `token`/`ak_id`, `ak_secret`, `ds_key`,
+  `interval`) via `zos::Settings`, and the platform classes (`ai_platform_esp.cc`, sim: `sim/sim_ai_platform.cc`) read/write them.
+- Voice: `apps/ai/voice_recorder_esp.cc` reads `ZectrixBoard::PrepareAudio()` (ES8311, 16 kHz) on a 6 KB task into PSRAM; the
+  app has only clicks, so OK starts and OK stops (20 s limit ends it and sends). The sim recorder returns 1 s of silence.
+  **Microphone, TLS to Bailian/DeepSeek and the memory use were never run on a real device.**
+- `ConfigField::Type::kSecret`: web page never shows it back; empty save = unchanged. `ZectrixCanvas::FillGray(level 0..16)`
+  = ordered-dither gray, used for progress bars and rules (the panel is 1 bpp).
+- Sim: `SIM_AI_FAKE=1` (canned chat/speech, `SIM_AI_SPEECH_TEXT` = transcript), `SIM_BOARD_FAKE=1` (canned balances/bills);
+  otherwise real curl with `DASHSCOPE_API_KEY`, `ALIBABA_CLOUD_ACCESS_KEY_ID/_SECRET`, `DEEPSEEK_API_KEY`.
 
 ## Web management page
 - `components/zos/web_ui.h`: hash routes; `#/` lists only apps with `config_fields` (apps without settings are not

@@ -25,7 +25,7 @@ from PIL import Image
 
 SIM = Path(__file__).resolve().parent.parent
 ROOT = SIM.parent
-KEYS = {"up", "down", "ok", "okhold", "downhold"}
+KEYS = {"up", "down", "ok", "okhold", "uphold", "downhold", "downlong"}
 
 
 def device_page():

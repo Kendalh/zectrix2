@@ -15,7 +15,7 @@ a.row{display:flex;justify-content:space-between;align-items:center;text-decorat
 a.row:after{content:"\203A";font-size:24px;color:#999}
 .back{display:inline-block;margin:4px 0 8px;color:#06c;text-decoration:none}
 label{display:block;margin:12px 0 2px;font-weight:600}.hint{color:#777;font-size:12px;margin-top:2px}
-input[type=text],input[type=number],select{width:100%;box-sizing:border-box;padding:6px;font-size:15px}
+input[type=text],input[type=password],input[type=number],select{width:100%;box-sizing:border-box;padding:6px;font-size:15px}
 button{margin-top:14px;padding:8px 16px;font-size:15px;background:#111;color:#fff;border:0;border-radius:4px}
 .st{color:#555;font-size:13px}.ok{color:#080}.err{color:#b00}
 </style></head><body>
@@ -43,6 +43,7 @@ function detail(id){
   let el;
   if(f.type==='bool'){el=$('input',{type:'checkbox',checked:f.value==='1'});}
   else if(f.type==='choice'){el=$('select');f.choices.forEach(c=>el.append($('option',{value:c,textContent:c,selected:c===f.value})));}
+  else if(f.type==='secret'){el=$('input',{type:'password',value:'',autocomplete:'off',placeholder:f.set?'已设置，留空则不修改':'尚未设置'});}
   else{el=$('input',{type:f.type==='int'?'number':'text',value:f.value});}
   inputs[f.key]=[f,el];
   card.append($('label',{textContent:f.label}),el);
@@ -51,7 +52,7 @@ function detail(id){
  const msg=$('span',{className:'st'});
  card.append($('button',{textContent:'保存',onclick:async()=>{
   const body={};
-  for(const k in inputs){const[f,el]=inputs[k];body[k]=f.type==='bool'?(el.checked?'1':'0'):el.value;}
+  for(const k in inputs){const[f,el]=inputs[k];if(f.type==='secret'&&!el.value.trim())continue;body[k]=f.type==='bool'?(el.checked?'1':'0'):f.type==='secret'?el.value.trim():el.value;}
   const r=await fetch('/api/apps/'+a.id+'/config',{method:'POST',body:JSON.stringify(body)});
   msg.className=r.ok?'ok':'err';msg.textContent=r.ok?' 已保存':' '+await r.text();
   if(r.ok)apps=await (await fetch('/api/apps')).json();}}),msg);

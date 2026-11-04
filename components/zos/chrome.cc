@@ -79,6 +79,8 @@ void Chrome::DrawFooter(ZectrixCanvas& canvas, const KeyHints& hints,
                               used ? "  " : "", key, note);
         used = std::min(used, sizeof(left) - 1);
     };
+    append("长按UP", hints.up_hold);
+    append("长按DN", hints.down_hold);
     append("UP", hints.up);
     append("DOWN", hints.down);
     append("OK", hints.select);

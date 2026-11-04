@@ -8,7 +8,7 @@ namespace zos {
 
 /**
  * Logical keys delivered to apps. Every app sees the same set, so the key
- * behaviour is identical everywhere:
+ * behaviour is identical everywhere (UpHold/DownHold are optional extras):
  *   Up / Down    click: move or adjust
  *   Select       click on the OK (BOOT) key: act on the current item
  *   SelectHold   hold OK 1.5 s: handled by the shell (go Home); apps never see it
@@ -19,6 +19,8 @@ enum class Key : uint8_t {
     kDown,
     kSelect,
     kSelectHold,
+    kUpHold,    ///< hold UP 1 s; an app that does not use it ignores it
+    kDownHold,  ///< hold DOWN 1 s; the 3 s power-off only works on the app list, so apps may use this freely
 };
 
 struct Rect {
@@ -40,11 +42,14 @@ struct KeyHints {
     const char* up = nullptr;
     const char* down = nullptr;
     const char* select = nullptr;
+    const char* up_hold = nullptr;    ///< shown as "长按UP <note>"
+    const char* down_hold = nullptr;  ///< shown as "长按DN <note>"
 };
 
 /** One user-editable setting, rendered automatically on the web page. */
 struct ConfigField {
-    enum class Type : uint8_t { kString, kInt, kBool, kChoice };
+    /** kSecret is a string the web page never shows back (API keys); saving it empty leaves it unchanged. */
+    enum class Type : uint8_t { kString, kInt, kBool, kChoice, kSecret };
 
     const char* key;        ///< NVS key, <= 15 chars
     const char* label;
