@@ -16,7 +16,7 @@
 #include <sstream>
 #include <thread>
 
-#include "apps/clock_app.h"
+#include "apps/clock_weather_app.h"
 #include "apps/epd_demo_app.h"
 #include "apps/wifi_setup_app.h"
 #include "sim_platform.h"
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
 
     board.Init();
     display.Init();
-    shell.Register(std::make_unique<ClockApp>());
+    shell.Register(std::make_unique<ClockWeatherApp>());
     shell.Register(std::make_unique<WifiSetupApp>());
     shell.Register(std::make_unique<EpdDemoApp>());
     network.Init([] { shell.Wake(); }, board.rtc());

@@ -1,6 +1,8 @@
 idf_component_register(SRCS
                        "app_main.cc"
-                       "apps/clock_app.cc"
+                       "apps/clock_weather_app.cc"
+                       "apps/weather/weather.cc"
+                       "apps/weather/weather_http_esp.cc"
                        "apps/epd_demo_app.cc"
                        "apps/wifi_setup_app.cc"
                        INCLUDE_DIRS "."
@@ -9,6 +11,9 @@ idf_component_register(SRCS
                        zectrix_epd
                        zos
                        esp_timer
+                       esp_http_client
+                       esp-tls
+                       cjson
                        nvs_flash
                        EMBED_FILES
                        "assets/lighthouse_400x300_1bpp.bin"

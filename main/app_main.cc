@@ -1,6 +1,6 @@
 #include <memory>
 
-#include "apps/clock_app.h"
+#include "apps/clock_weather_app.h"
 #include "apps/epd_demo_app.h"
 #include "apps/wifi_setup_app.h"
 #include "esp_log.h"
@@ -41,7 +41,7 @@ extern "C" void app_main(void) {
         return;
     }
 
-    shell.Register(std::make_unique<ClockApp>());
+    shell.Register(std::make_unique<ClockWeatherApp>());
     shell.Register(std::make_unique<WifiSetupApp>());
     shell.Register(std::make_unique<EpdDemoApp>());
 

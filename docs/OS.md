@@ -54,14 +54,16 @@ repaints everything when they return.
 
 ## Web page
 
-Once Wi-Fi is connected, browse to `http://<device ip>/`. Wi-Fi itself is set
-up from the WI-FI SETUP app (hotspot + captive portal).
+Once Wi-Fi is connected, browse to `http://<device ip>/`. The first view lists
+only the apps that declare settings; apps without any are not shown. Opening
+one shows its form (`#/app/<id>`). Wi-Fi itself is set up from the 配网 app
+(hotspot + captive portal).
 
 ## Apps
 
 | App | Notes |
 | --- | --- |
-| CLOCK | HH:MM, partial refresh once a minute, full refresh on the hour; zone, 12/24 h and date are web-configurable; NTP over Wi-Fi, kept in the RTC |
+| 时钟天气 (CLOCK) | big HH:MM with one partial refresh a minute (full on the hour); current weather, icon and a 4-day forecast from Open-Meteo (no key), fetched on a worker task only while Wi-Fi is up and the data is older than the interval; city by name (geocoded once), zone, 12/24 h, date and interval are web-configurable; OK refreshes |
 | WI-FI SETUP | shows the connection; OK starts the provisioning hotspot |
 | E-PAPER DEMO | the original full / partial / 16-gray scenes |
 

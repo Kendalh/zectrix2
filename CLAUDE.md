@@ -38,9 +38,23 @@ Chinese font on the panel are unverified); the PC simulator is the only runtime 
 - Light sleep / power management is not implemented (button task polls, Wi-Fi stays on): the clock only saves panel
   power.
 
+## Clock + weather app (`main/apps/clock_weather_app.*`, `main/apps/weather/`)
+- Open-Meteo (no key), adapted from the youn project's parser. `weather.cc` is pure (URLs, parsing, WMO tables) and is
+  shared with the simulator; only `WeatherHttpGet` differs (`weather_http_esp.cc` = esp_http_client + cert bundle,
+  `sim/sim_http.cc` = system curl, so the sim shows real weather). Uses `timezone=auto`.
+- Fetching is blocking TLS, so it runs on a worker task (`xTaskCreate`, 8 KB stack) and ends with `ctx.Wake()`; the shell
+  thread never waits. Worker and shell share state under `mutex_`; settings are only touched on the shell thread
+  (the worker hands the geocoded lat/lon back and `OnWake()` saves it). A `generation_` counter drops results of
+  an old city after a config change. Failed fetches retry after 5 min; no polling while Wi-Fi is down.
+- The city is a typed name, shown as typed (the geocoded name can use characters the font lacks, e.g. 東京).
+
+## Web management page
+- `components/zos/web_ui.h`: hash routes; `#/` lists only apps with `config_fields` (apps without settings are not
+  shown), `#/app/<id>` is that app's form. The API (`/api/apps`) still returns every app.
+
 ## Chinese UI
 - The canvas decodes UTF-8: ASCII from the 8x16 font, everything else from `font/zectrix_cjk_font_16.h`
-  (only the characters used, GNU Unifont 16x16, OFL). After adding Chinese text run
+  (the characters used plus GB2312 level 1, 3755 common characters, so user-typed text such as city names works; GNU Unifont 16x16, OFL; ~570 KB source, ~130 KB flash). After adding Chinese text run
   `python3 tools/generate_cjk_font.py` (downloads Unifont once to `~/.cache/zectrix/`). Missing glyph = `?`.
 - Noto Sans SC at 16 px looked blurry/heavy; Ark Pixel only exists at 10/12 px. Unifont at 16 px was the best look.
 - A 400 px line holds ~24 Chinese characters. Stored choice values (e.g. time zones) are Chinese strings too.

@@ -14,8 +14,8 @@ CFLAGS   := -O1 $(INC)
 
 CXX_SRCS := $(addprefix $(Z)/,display.cc chrome.cc settings.cc shell.cc web_api.cc) \
             $(ROOT)/components/zectrix_demo_ui/zectrix_canvas.cc \
-            $(wildcard $(ROOT)/main/apps/*.cc) \
-            sim_platform.cc sim_assets.cc sim_device.cc
+            $(wildcard $(ROOT)/main/apps/*.cc) $(ROOT)/main/apps/weather/weather.cc \
+            sim_platform.cc sim_assets.cc sim_http.cc sim_device.cc
 OBJS := $(patsubst %,$(BUILD)/%.o,$(notdir $(CXX_SRCS))) $(BUILD)/cJSON.c.o
 vpath %.cc $(sort $(dir $(CXX_SRCS)))
 
