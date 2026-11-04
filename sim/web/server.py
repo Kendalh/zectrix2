@@ -25,6 +25,7 @@ from PIL import Image
 
 SIM = Path(__file__).resolve().parent.parent
 ROOT = SIM.parent
+MIC_FILE = "/tmp/zectrix_sim_mic.wav"  # keep in sync with kMicFile in sim_ai_platform.cc
 KEYS = {"up", "down", "ok", "okhold", "uphold", "downhold", "downlong"}
 
 
@@ -63,11 +64,11 @@ class Device:
         reply = self.raw(line)
         if not reply.startswith("FRAME"):
             raise ValueError(reply)
-        _, path, full, partial, gray, errors, off, last = reply.split("\t")
+        _, path, full, partial, gray, errors, off, rec, last = reply.split("\t")
         buf = BytesIO()
         Image.open(path).convert("L").save(buf, "PNG")
         return buf.getvalue(), {"X-Full": full, "X-Partial": partial, "X-Gray": gray,
-                                "X-Errors": errors, "X-Off": off, "X-Last": last}
+                                "X-Errors": errors, "X-Off": off, "X-Rec": rec, "X-Last": last}
 
     def close(self):
         if self.proc.poll() is None:
@@ -126,6 +127,17 @@ class UiHandler(BaseHTTPRequestHandler):
             DEVICE.restart()
             return self._frame("screen")
         send(self, 404, b"not found", "text/plain")
+
+    def do_POST(self):
+        # PC microphone: a mono WAV the page recorded while an app was recording. The simulated recorder picks it
+        # up when the recording ends (kMicFile in sim_ai_platform.cc).
+        if urlparse(self.path).path != "/voice":
+            return send(self, 404, b"not found", "text/plain")
+        n = int(self.headers.get("Content-Length", "0"))
+        if n <= 0 or n > 8 * 1024 * 1024:
+            return send(self, 400, b"bad size", "text/plain")
+        Path(MIC_FILE).write_bytes(self.rfile.read(n))
+        send(self, 200, b"ok", "text/plain")
 
     def log_message(self, *args):
         pass

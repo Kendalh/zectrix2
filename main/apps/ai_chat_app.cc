@@ -131,7 +131,6 @@ void AiChatApp::BuildLines(const ai::Session& session, bool has_key, bool starte
     if (session.messages.empty() && !session.pending) {
         Wrap("新会话", false, false, width, "", canvas);
         Wrap("按 OK 开始说出问题，再按 OK 结束并发送。", false, true, width, "", canvas);
-        Wrap("长按 UP 新会话，长按 DOWN 会话列表。", false, true, width, "", canvas);
     }
     for (const ai::Message& m : session.messages) {
         if (m.role == ai::Message::User) {

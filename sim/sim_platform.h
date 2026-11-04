@@ -14,6 +14,8 @@ struct PanelStats {
 };
 
 PanelStats panel_stats();
+/** True while an app is recording (the web page then records the PC microphone, see sim/web). */
+bool recording();
 /** 8-bit gray copy of what the panel currently shows (400x300). */
 std::vector<uint8_t> panel_pixels();
 

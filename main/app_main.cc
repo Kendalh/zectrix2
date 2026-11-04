@@ -1,6 +1,7 @@
 #include <memory>
 
 #include "apps/ai_chat_app.h"
+#include "apps/ai_ink_app.h"
 #include "apps/clock_weather_app.h"
 #include "apps/epd_demo_app.h"
 #include "apps/token_board_app.h"
@@ -45,6 +46,7 @@ extern "C" void app_main(void) {
 
     shell.Register(std::make_unique<ClockWeatherApp>());
     shell.Register(std::make_unique<AiChatApp>(board));
+    shell.Register(std::make_unique<AiInkApp>(board));
     shell.Register(std::make_unique<TokenBoardApp>());
     shell.Register(std::make_unique<WifiSetupApp>());
     shell.Register(std::make_unique<EpdDemoApp>());

@@ -7,7 +7,7 @@ body{font-family:system-ui,sans-serif;background:#e9e6df;margin:0;padding:24px;c
 #screen{display:block;width:800px;height:600px;image-rendering:pixelated;background:#fff;border:10px solid #1d1d1d;border-radius:6px}
 .buttons{display:flex;justify-content:center;gap:18px;margin-top:18px}
 .btn{width:120px;padding:14px 0;border-radius:10px;border:2px solid #444;background:#fff;font-size:16px;cursor:pointer;user-select:none;text-align:center}
-.btn.down{background:#ffd600}.btn small{display:block;font-size:11px;color:#666;margin-top:3px}
+.btn.down{background:#ffd600}.btn.rec{background:#ff5252;color:#fff}.btn.rec small{color:#fff}.btn small{display:block;font-size:11px;color:#666;margin-top:3px}
 .side{min-width:280px;max-width:360px;font-size:14px;line-height:1.7}
 #log{font:12px/1.6 ui-monospace,monospace;background:#fff;border:1px solid #ccc;border-radius:6px;padding:8px;height:240px;overflow:auto;white-space:pre-wrap}
 #err{color:#b00020}.bad{color:#b00020;font-weight:bold}
@@ -35,18 +35,25 @@ body{font-family:system-ui,sans-serif;background:#e9e6df;margin:0;padding:24px;c
  </div></div>
 <script>
 const $=id=>document.getElementById(id);
+function setScreen(blob){const old=$('screen').src;$('screen').src=URL.createObjectURL(blob);if(old.startsWith('blob:'))URL.revokeObjectURL(old);}
 let busy=Promise.resolve(),count=0;
 function show(r,label){
   $('n-full').textContent=r.headers.get('X-Full');$('n-partial').textContent=r.headers.get('X-Partial');
   $('n-gray').textContent=r.headers.get('X-Gray');$('last').textContent=r.headers.get('X-Last');
   const e=+r.headers.get('X-Errors');$('n-err').textContent=e?`  ${e} driver error(s)!`:'';
   const off=r.headers.get('X-Off')==='1';$('off').style.display=off?'block':'none';
+  // The apps record the PC microphone while the device is recording (hint: allow the microphone for this page).
+  const rec=r.headers.get('X-Rec')==='1';
+  if(rec&&!mic.stream&&!mic.starting)micStart();
+  else if(!rec&&mic.stream)micCancel();
   if(label){$('log').textContent+=`${++count}. ${label} -> ${r.headers.get('X-Last')}\n`;$('log').scrollTop=1e9;}
 }
 function send(path,label){busy=busy.then(async()=>{
+  // OK ends a recording: the WAV must be on the server before the device handles the key.
+  if(mic.stream&&path==='/key?name=ok')await micStopAndUpload();
   const r=await fetch(path+(path.includes('?')?'&':'?')+'t='+Date.now());
   if(!r.ok){$('err').textContent=await r.text();return;}
-  $('err').textContent='';$('screen').src=URL.createObjectURL(await r.blob());show(r,label);});}
+  $('err').textContent='';setScreen(await r.blob());show(r,label);});}
 // Same timing as the board: OK clicks on release, long press at 1.5 s while held; UP/DOWN click on press,
 // hold at 1 s (UP, DOWN) and DOWN long at 3 s. `holds` = [[key, ms], ...].
 function wire(el,key,holds,onPress){
@@ -61,6 +68,52 @@ function wire(el,key,holds,onPress){
 }
 const up=wire($('b-up'),'up',[['uphold',1000]],true),dn=wire($('b-down'),'down',[['downhold',1000],['downlong',3000]],true),ok=wire($('b-ok'),'ok',[['okhold',1500]],false);
 const map={ArrowUp:up,ArrowDown:dn,Enter:ok,b:ok,B:ok};
+
+// ---- PC microphone for AI Q&A / AI ink: records while the device app is recording, 16 kHz mono WAV.
+const mic={ctx:null,stream:null,node:null,chunks:[],starting:false};
+function beep(hz){try{const c=new AudioContext(),o=c.createOscillator(),g=c.createGain();o.frequency.value=hz;g.gain.value=0.1;
+  o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+0.15);setTimeout(()=>c.close(),400);}catch(e){}}
+async function micStart(){
+  mic.starting=true;
+  try{
+    mic.chunks=[];
+    mic.stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    mic.ctx=new AudioContext({sampleRate:16000});
+    const src=mic.ctx.createMediaStreamSource(mic.stream);
+    mic.node=mic.ctx.createScriptProcessor(4096,1,1);
+    mic.node.onaudioprocess=e=>mic.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+    src.connect(mic.node);mic.node.connect(mic.ctx.destination);
+    $('b-ok').classList.add('rec');beep(1200);$('err').textContent='';
+  }catch(e){mic.stream=null;$('err').textContent='电脑麦克风不可用：'+e.message+'（将使用静音）';}
+  mic.starting=false;
+}
+function micRelease(){
+  $('b-ok').classList.remove('rec');
+  if(mic.node)mic.node.disconnect();
+  if(mic.stream)mic.stream.getTracks().forEach(t=>t.stop());
+  const c=mic.ctx;mic.stream=null;mic.node=null;mic.ctx=null;
+  return c;
+}
+async function micCancel(){const c=micRelease();if(c)await c.close();}  // the device stopped recording by itself
+async function micStopAndUpload(){
+  beep(700);
+  const rate=mic.ctx.sampleRate,chunks=mic.chunks;
+  const c=micRelease();await c.close();
+  let total=0;for(const k of chunks)total+=k.length;
+  const buf=new ArrayBuffer(44+total*2),v=new DataView(buf);
+  const str=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i));};
+  str(0,'RIFF');v.setUint32(4,36+total*2,true);str(8,'WAVEfmt ');
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);
+  str(36,'data');v.setUint32(40,total*2,true);
+  let o=44;
+  for(const k of chunks)for(let i=0;i<k.length;i++,o+=2)v.setInt16(o,Math.max(-1,Math.min(1,k[i]))*0x7fff,true);
+  await fetch('/voice',{method:'POST',body:buf});
+}
+// The device redraws by itself (recording time, answers, pictures) but this page only draws on request: re-read the
+// screen every second, queued behind key presses.
+setInterval(()=>{busy=busy.then(async()=>{try{const r=await fetch('/screen?t='+Date.now());
+  if(!r.ok)return;setScreen(await r.blob());show(r,null);}catch(e){}});},1000);
 addEventListener('keydown',e=>{const k=map[e.key];if(k){e.preventDefault();if(!e.repeat)k.down();}});
 addEventListener('keyup',e=>{const k=map[e.key];if(k)k.up();});
 $('wifi').onchange=e=>send('/net?state='+(e.target.checked?'up':'down'),'wifi '+(e.target.checked?'up':'down'));

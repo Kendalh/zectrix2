@@ -17,6 +17,7 @@
 #include <thread>
 
 #include "apps/ai_chat_app.h"
+#include "apps/ai_ink_app.h"
 #include "apps/clock_weather_app.h"
 #include "apps/epd_demo_app.h"
 #include "apps/token_board_app.h"
@@ -60,8 +61,9 @@ void ReplyFrame(const char* out_dir, int* index) {
         std::fclose(f);
     }
     const sim::PanelStats s = sim::panel_stats();
-    std::printf("FRAME\t%s\t%d\t%d\t%d\t%d\t%d\t%s\n", path, s.full, s.partial,
-                s.gray, s.errors, s.powered_off ? 1 : 0, s.last.c_str());
+    std::printf("FRAME\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n", path, s.full, s.partial,
+                s.gray, s.errors, s.powered_off ? 1 : 0, sim::recording() ? 1 : 0,
+                s.last.c_str());
 }
 
 }  // namespace
@@ -82,6 +84,7 @@ int main(int argc, char** argv) {
     display.Init();
     shell.Register(std::make_unique<ClockWeatherApp>());
     shell.Register(std::make_unique<AiChatApp>(board));
+    shell.Register(std::make_unique<AiInkApp>(board));
     shell.Register(std::make_unique<TokenBoardApp>());
     shell.Register(std::make_unique<WifiSetupApp>());
     shell.Register(std::make_unique<EpdDemoApp>());

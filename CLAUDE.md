@@ -73,6 +73,13 @@ Chinese font on the panel are unverified); the PC simulator is the only runtime 
 - Voice: `apps/ai/voice_recorder_esp.cc` reads `ZectrixBoard::PrepareAudio()` (ES8311, 16 kHz) on a 6 KB task into PSRAM; the
   app has only clicks, so OK starts and OK stops (20 s limit ends it and sends). The sim recorder returns 1 s of silence.
   **Microphone, TLS to Bailian/DeepSeek and the memory use were never run on a real device.**
+- AI ink painter (`apps/ai_ink_app.*`, `apps/ai/ai_paint.*`, `png_decode.*`, ported from youn's AI painter): ink wash prompts
+  (`kPlannerSystem`/`kPosterPrefix`/`kPosterSuffix`/`kNegativePrompt` in `ai_paint.cc`, English, monochrome, empty space), model
+  `qwen-image-2.0-pro` at 640x480, `PngToGray16` -> 60000-byte 4bpp (high nibble = left pixel, 0 black .. 15 white) shown with
+  `Display::Show4bpp` while the app is `fullscreen()`; it shares the `aichat`/`key` setting. Sim: the image reply and a synthetic
+  ink PNG come from `sim_ai_platform.cc` (`SIM_AI_FAKE=1`; `SIM_AI_IMAGE_PNG=file.png` serves a real file to test the conversion).
+  **Never run against the real image model or on hardware** (TLS download of ~1 MB, PSRAM use while decoding, how the model's
+  ink style looks after the gray conversion are unverified; prompts will need tuning).
 - `ConfigField::Type::kSecret`: web page never shows it back; empty save = unchanged. `ZectrixCanvas::FillGray(level 0..16)`
   = ordered-dither gray, used for progress bars and rules (the panel is 1 bpp).
 - Sim: `SIM_AI_FAKE=1` (canned chat/speech, `SIM_AI_SPEECH_TEXT` = transcript), `SIM_BOARD_FAKE=1` (canned balances/bills);

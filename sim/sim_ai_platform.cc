@@ -3,7 +3,10 @@
 // the environment (DASHSCOPE_API_KEY, ALIBABA_CLOUD_ACCESS_KEY_ID/_SECRET, DEEPSEEK_API_KEY), then "sim-fake" in fake mode.
 #include <unistd.h>
 
+#include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -59,6 +62,111 @@ std::string CannedTranscript() {
     cJSON_free(out);
     cJSON_Delete(reply);
     return json;
+}
+
+// ---- ink painter fakes: a canned image reply and a synthetic 640x480 ink wash PNG (stored deflate blocks) ----
+
+const char kFakeImageUrl[] = "https://sim.invalid/ink.png";
+
+uint32_t Crc32(const std::string& s) {
+    uint32_t c = 0xFFFFFFFFu;
+    for (unsigned char b : s) {
+        c ^= b;
+        for (int k = 0; k < 8; ++k) c = (c >> 1) ^ (0xEDB88320u & (0u - (c & 1)));
+    }
+    return ~c;
+}
+
+void Put32(std::string* s, uint32_t v) {
+    for (int i = 3; i >= 0; --i) s->push_back(static_cast<char>((v >> (i * 8)) & 0xFF));
+}
+
+void PutChunk(std::string* png, const char* type, const std::string& body) {
+    Put32(png, static_cast<uint32_t>(body.size()));
+    const std::string typed = std::string(type, 4) + body;
+    png->append(typed);
+    Put32(png, Crc32(typed));
+}
+
+// Layered hills in mist, a pale moon left as paper, a dark pine at the lower left: tones from paper white to deep ink.
+int InkPixel(int x, int y) {
+    const double fx = x / 640.0, fy = y / 480.0;
+    double v = 245 - 40 * fy * fy;  // paper, a little darker toward the bottom (wash)
+    const double dx = x - 470, dy = y - 120;
+    if (dx * dx + dy * dy < 55 * 55) return 252;  // the moon: bare paper
+    if (dx * dx + dy * dy < 70 * 70) v -= 12;     // halo wash
+    struct Layer { double base, amp, freq, phase; int tone; };
+    static const Layer layers[] = {{0.50, 0.07, 5.0, 0.3, 190}, {0.60, 0.09, 4.0, 1.7, 140}, {0.72, 0.10, 3.0, 2.9, 80}};
+    for (const Layer& l : layers) {
+        const double ridge = l.base + l.amp * std::sin(l.freq * fx * 3.14159 + l.phase) +
+                             0.03 * std::sin(17 * fx + l.phase * 3);
+        if (fy > ridge) {
+            const double mist = std::max(0.0, 1.0 - (fy - ridge) * 9);  // mist lies in the valleys
+            v = l.tone + (v - l.tone) * (0.25 + 0.5 * mist) * 0.6 + 12 * std::sin(60 * fx + 40 * fy);
+        }
+    }
+    // pine: a dark trunk and a few needle clusters
+    if (std::abs(x - 90 - (y - 260) / 14) < 4 && y > 260) v = 25;
+    for (int k = 0; k < 4; ++k) {
+        const double cx = 90 + (k % 2 ? 36 : -30), cy = 285 + k * 34;
+        if ((x - cx) * (x - cx) / 1900.0 + (y - cy) * (y - cy) / 150.0 < 1.0) v = 30;
+    }
+    return static_cast<int>(std::min(255.0, std::max(0.0, v)));
+}
+
+std::string FakeInkPng() {
+    constexpr int kW = 640, kH = 480;
+    std::string raw;
+    raw.reserve((kW * 3 + 1) * kH);
+    for (int y = 0; y < kH; ++y) {
+        raw.push_back(0);
+        for (int x = 0; x < kW; ++x) {
+            const char g = static_cast<char>(InkPixel(x, y));
+            raw.push_back(g);
+            raw.push_back(g);
+            raw.push_back(g);
+        }
+    }
+    std::string z = "\x78\x01";
+    for (size_t pos = 0; pos < raw.size(); pos += 65535) {
+        const size_t n = std::min<size_t>(65535, raw.size() - pos);
+        z.push_back(pos + n >= raw.size() ? 1 : 0);
+        z.push_back(static_cast<char>(n & 0xFF));
+        z.push_back(static_cast<char>(n >> 8));
+        z.push_back(static_cast<char>(~n & 0xFF));
+        z.push_back(static_cast<char>((~n >> 8) & 0xFF));
+        z.append(raw, pos, n);
+    }
+    uint32_t a = 1, b = 0;
+    for (unsigned char ch : raw) {
+        a = (a + ch) % 65521;
+        b = (b + a) % 65521;
+    }
+    Put32(&z, (b << 16) | a);
+    std::string png = "\x89PNG\r\n\x1a\n";
+    std::string ihdr;
+    Put32(&ihdr, kW);
+    Put32(&ihdr, kH);
+    ihdr += std::string("\x08\x02\x00\x00\x00", 5);
+    PutChunk(&png, "IHDR", ihdr);
+    PutChunk(&png, "IDAT", z);
+    PutChunk(&png, "IEND", "");
+    return png;
+}
+
+// SIM_AI_IMAGE_PNG=file.png serves that file instead (to try the conversion on real model output).
+std::string FakeImageBytes() {
+    if (const char* path = getenv("SIM_AI_IMAGE_PNG")) {
+        if (FILE* f = fopen(path, "rb")) {
+            std::string data;
+            char buf[4096];
+            size_t n;
+            while ((n = fread(buf, 1, sizeof(buf), f)) > 0) data.append(buf, n);
+            fclose(f);
+            if (!data.empty()) return data;
+        }
+    }
+    return FakeInkPng();
 }
 
 // curl reads URL, headers (with the key) and body from files, so secrets never show up in `ps`.
@@ -164,6 +272,13 @@ public:
             if (!request.body_blob.empty()) {
                 if (!ai::BuildBlobBody(&request)) done(0, "", "录音数据为空");
                 else done(200, CannedTranscript(), "");
+            } else if (request.url.find("multimodal-generation") != std::string::npos) {  // ink painter: image model
+                std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+                done(200, std::string("{\"output\":{\"choices\":[{\"message\":{\"content\":[{\"image\":\"") + kFakeImageUrl +
+                              "\"}]}}]}}", "");
+            } else if (request.method == "GET" && request.url == kFakeImageUrl) {  // ink painter: download
+                std::this_thread::sleep_for(std::chrono::milliseconds(800));
+                done(200, FakeImageBytes(), "");
             } else {
                 done(200, CannedChat(request.body), "");
             }
@@ -223,11 +338,31 @@ std::unique_ptr<board::Platform> NewBoardPlatform() { return std::make_unique<Si
 #include "apps/ai/voice_recorder.h"
 
 namespace {
+// Where sim/web/server.py stores the WAV the browser recorded from the PC microphone.
+constexpr char kMicFile[] = "/tmp/zectrix_sim_mic.wav";
+std::atomic<bool> g_recording{false};
+
+std::string ReadFile(const char* path) {
+    std::string data;
+    if (FILE* f = fopen(path, "rb")) {
+        char buf[4096];
+        size_t n;
+        while ((n = fread(buf, 1, sizeof(buf), f)) > 0) data.append(buf, n);
+        fclose(f);
+    }
+    return data;
+}
+
+// The page starts recording the PC microphone when it sees `recording()` (a header of every frame) and uploads the WAV
+// just before the key that ends the recording. Without a microphone the page sends nothing: SIM_VOICE_WAV=file.wav is
+// used, else one second of silence (enough for the fake speech recognition).
 class SimRecorder : public ai::VoiceRecorder {
 public:
     bool Start() override {
+        remove(kMicFile);  // never use an old take
         started_ = std::chrono::steady_clock::now();
         recording_ = true;
+        g_recording = true;
         return true;
     }
     bool recording() const override {
@@ -239,9 +374,18 @@ public:
                                     std::chrono::steady_clock::now() - started_).count());
     }
     std::string Stop() override {
-        const bool long_enough = recording_ && elapsed_ms() >= 500;
+        const bool was_recording = recording_;
+        const int ms = elapsed_ms();
         recording_ = false;
-        if (!long_enough) return "";
+        g_recording = false;
+        if (!was_recording) return "";
+        std::string wav = ReadFile(kMicFile);  // the PC microphone
+        remove(kMicFile);
+        if (wav.empty()) {
+            if (const char* path = getenv("SIM_VOICE_WAV")) wav = ReadFile(path);
+        }
+        if (!wav.empty()) return wav;
+        if (ms < 500) return "";
         const std::vector<int16_t> silence(ai::kRecordSampleRate, 0);
         return ai::BuildWav(silence.data(), silence.size(), ai::kRecordSampleRate);
     }
@@ -255,3 +399,7 @@ private:
 namespace ai {
 std::unique_ptr<VoiceRecorder> NewVoiceRecorder(ZectrixBoard&) { return std::make_unique<SimRecorder>(); }
 }  // namespace ai
+
+namespace sim {
+bool recording() { return g_recording; }
+}  // namespace sim
