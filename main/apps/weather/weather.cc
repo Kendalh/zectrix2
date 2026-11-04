@@ -44,8 +44,15 @@ WeatherIcon WmoIcon(int code) {
         case 45: case 48: return WeatherIcon::kFog;
         case 71: case 73: case 75: case 77: case 85: case 86: return WeatherIcon::kSnow;
         case 95: case 96: case 99: return WeatherIcon::kThunder;
+        case 63: case 65: case 81: case 82: return WeatherIcon::kHeavyRain;
         default: return (code >= 51 && code <= 82) ? WeatherIcon::kRain : WeatherIcon::kSunny;
     }
+}
+
+WeatherIcon NightIcon(WeatherIcon icon) {
+    if (icon == WeatherIcon::kSunny) return WeatherIcon::kClearNight;
+    if (icon == WeatherIcon::kPartlyCloudy) return WeatherIcon::kPartlyCloudyNight;
+    return icon;
 }
 
 std::string WindDirectionText(double deg) {
@@ -121,7 +128,9 @@ bool ParseDaily(cJSON* daily, WeatherData* out) {
         WeatherDay day;
         const int wd = WeekdayFromDate(StringAt(times, i));
         day.label = i == 0 ? "今天" : i == 1 ? "明天" : (wd >= 0 ? kWeekdays[wd] : "--");
-        day.text = WmoText(RoundInt(NumberAt(codes, i, -1)));
+        const int code = RoundInt(NumberAt(codes, i, -1));
+        day.text = WmoText(code);
+        day.icon = WmoIcon(code);
         day.temp_max = RoundInt(NumberAt(tmax, i));
         day.temp_min = RoundInt(NumberAt(tmin, i));
         out->days.push_back(day);
@@ -157,9 +166,11 @@ bool ParseForecast(const char* json, WeatherData* out) {
     }
     if (number("apparent_temperature", &v)) out->feels_like = RoundInt(v);
     if (number("relative_humidity_2m", &v)) out->humidity = RoundInt(v);
+    const bool night = number("is_day", &v) && v < 0.5;
     if (number("weather_code", &v)) {
         out->text = WmoText(RoundInt(v));
         out->icon = WmoIcon(RoundInt(v));
+        if (night) out->icon = NightIcon(out->icon);
     }
     if (number("wind_direction_10m", &v)) out->wind_dir = WindDirectionText(v);
     if (number("wind_speed_10m", &v)) out->wind_scale = WindBeaufort(v);
@@ -232,7 +243,7 @@ std::string UrlEncode(const std::string& text) {
 // timezone=auto: times (and the daily split) follow the city, not a fixed zone.
 std::string ForecastUrl(const WeatherCity& city) {
     return "https://api.open-meteo.com/v1/forecast?latitude=" + city.lat + "&longitude=" + city.lon +
-           "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,"
+           "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,is_day,"
            "wind_speed_10m,wind_direction_10m"
            "&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max"
            "&timezone=auto&forecast_days=7";

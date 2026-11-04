@@ -63,7 +63,7 @@ one shows its form (`#/app/<id>`). Wi-Fi itself is set up from the 配网 app
 
 | App | Notes |
 | --- | --- |
-| 时钟天气 (CLOCK) | big HH:MM with one partial refresh a minute (full on the hour); current weather, icon and a 4-day forecast from Open-Meteo (no key), fetched on a worker task only while Wi-Fi is up and the data is older than the interval; city by name (geocoded once), zone, 12/24 h, date and interval are web-configurable; OK refreshes |
+| 时钟天气 (CLOCK) | big HH:MM with one partial refresh a minute (full on the hour); current weather and a 4-day forecast shown as icons (Font Awesome bitmaps, `tools/generate_weather_icons.py`) from Open-Meteo (no key), fetched on a worker task only while Wi-Fi is up and the data is older than the interval; city by name (geocoded once), zone, 12/24 h, date and interval are web-configurable; OK refreshes |
 | WI-FI SETUP | shows the connection; OK starts the provisioning hotspot |
 | E-PAPER DEMO | the original full / partial / 16-gray scenes |
 

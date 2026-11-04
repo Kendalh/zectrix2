@@ -1,7 +1,10 @@
 #include "apps/clock_weather_app.h"
 
+#include "apps/weather/weather_icons.h"
+
 #include <sys/time.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -51,85 +54,49 @@ constexpr zos::ConfigField kFields[] = {
 constexpr int kTimeScale = 5;
 constexpr int kRetryMs = 5 * 60 * 1000;
 constexpr int kForecastColumns = 4;
+constexpr int kTimeAreaWidth = 208;  // left of the weather card
 
 int64_t NowMs() { return esp_timer_get_time() / 1000; }
 
-// ---- icons: 48x48 boxes drawn from primitives -------------------------
+// ---- drawing helpers --------------------------------------------------
 
-void Disc(ZectrixCanvas& canvas, int cx, int cy, int r, bool black) {
-    for (int dy = -r; dy <= r; ++dy) {
-        const int half = static_cast<int>(std::sqrt(static_cast<double>(r * r - dy * dy)) + 0.5);
-        canvas.FillRect(cx - half, cy + dy, half * 2 + 1, 1, black);
-    }
-}
-
-void Sun(ZectrixCanvas& canvas, int cx, int cy, int r) {
-    Disc(canvas, cx, cy, r, true);
-    static const double kDirs[8][2] = {{1, 0},      {0.707, 0.707},   {0, 1},     {-0.707, 0.707},
-                                       {-1, 0},     {-0.707, -0.707}, {0, -1},    {0.707, -0.707}};
-    for (const auto& d : kDirs) {
-        canvas.Line(cx + static_cast<int>(d[0] * (r + 4)), cy + static_cast<int>(d[1] * (r + 4)),
-                    cx + static_cast<int>(d[0] * (r + 9)), cy + static_cast<int>(d[1] * (r + 9)));
-    }
-}
-
-// Cloud, 48 wide and 30 tall, with a white halo so it can overlap a sun.
-void Cloud(ZectrixCanvas& canvas, int x, int y) {
-    for (const bool black : {false, true}) {
-        const int g = black ? 0 : 2;
-        Disc(canvas, x + 14, y + 20, 8 + g, black);
-        Disc(canvas, x + 25, y + 14, 11 + g, black);
-        Disc(canvas, x + 37, y + 21, 7 + g, black);
-        canvas.FillRect(x + 14 - g, y + 20 - g, 24 + 2 * g, 9 + 2 * g, black);
-    }
-}
-
-void DrawIcon(ZectrixCanvas& canvas, int x, int y, WeatherIcon icon) {
-    switch (icon) {
-        case WeatherIcon::kSunny:
-            Sun(canvas, x + 24, y + 24, 9);
-            break;
-        case WeatherIcon::kPartlyCloudy:
-            Sun(canvas, x + 15, y + 15, 7);
-            Cloud(canvas, x + 2, y + 14);
-            break;
-        case WeatherIcon::kOvercast:
-            Cloud(canvas, x, y + 10);
-            break;
-        case WeatherIcon::kRain:
-            Cloud(canvas, x, y + 2);
-            for (int i = 0; i < 3; ++i) {
-                canvas.Line(x + 15 + i * 10, y + 36, x + 12 + i * 10, y + 44);
-                canvas.Line(x + 16 + i * 10, y + 36, x + 13 + i * 10, y + 44);
+void Blit(ZectrixCanvas& canvas, int x, int y, const uint8_t* bits, int size) {
+    const int stride = size / 8;
+    for (int row = 0; row < size; ++row) {
+        for (int bx = 0; bx < stride; ++bx) {
+            const uint8_t byte = bits[row * stride + bx];
+            for (int bit = 0; byte != 0 && bit < 8; ++bit) {
+                if (byte & (0x80 >> bit)) canvas.Pixel(x + bx * 8 + bit, y + row, true);
             }
-            break;
-        case WeatherIcon::kThunder:
-            Cloud(canvas, x, y + 2);
-            canvas.Line(x + 27, y + 32, x + 20, y + 40);
-            canvas.Line(x + 28, y + 32, x + 21, y + 40);
-            canvas.Line(x + 20, y + 40, x + 28, y + 40);
-            canvas.Line(x + 28, y + 40, x + 22, y + 47);
-            break;
-        case WeatherIcon::kSnow:
-            Cloud(canvas, x, y + 2);
-            for (int i = 0; i < 3; ++i) {
-                for (int row = 0; row < 2; ++row) {
-                    const int px = x + 14 + i * 10 + row * 5;
-                    const int py = y + 37 + row * 6;
-                    canvas.FillRect(px - 1, py, 4, 2, true);
-                    canvas.FillRect(px, py - 1, 2, 4, true);
-                }
-            }
-            break;
-        case WeatherIcon::kFog:
-            for (int row = 0; row < 4; ++row) {
-                canvas.FillRect(x + 4 + (row % 2) * 6, y + 10 + row * 8, 36, 3, true);
-            }
-            break;
+        }
     }
 }
 
-void TextAt(ZectrixCanvas& canvas, int center_x, int y, const char* text) {
+void DrawIcon(ZectrixCanvas& canvas, int x, int y, WeatherIcon icon, int size) {
+    const int index = static_cast<int>(icon);
+    Blit(canvas, x, y, size == 48 ? kWeatherIcons48[index] : kWeatherIcons32[index], size);
+}
+
+// "25°C" (or "25°" without the C). The font has no degree sign, so the ring is
+// drawn. Returns the width; with `draw` false only measures.
+int DrawTemp(ZectrixCanvas& canvas, int x, int y, int value, int scale,
+             bool with_c, bool draw = true) {
+    char digits[12];
+    std::snprintf(digits, sizeof(digits), "%d", value);
+    const int ring = 2 * scale + 3;
+    int width = canvas.TextWidth(digits, scale) + 2 + ring;
+    if (with_c) width += 2 + canvas.TextWidth("C", scale);
+    if (!draw) return width;
+    canvas.Text(x, y, digits, scale);
+    const int ring_x = x + canvas.TextWidth(digits, scale) + 2;
+    const int ring_y = y + 2 * scale;
+    canvas.Rect(ring_x, ring_y, ring, ring);
+    if (scale >= 3) canvas.Rect(ring_x + 1, ring_y + 1, ring - 2, ring - 2);
+    if (with_c) canvas.Text(ring_x + ring + 2, y, "C", scale);
+    return width;
+}
+
+void TextCenteredAt(ZectrixCanvas& canvas, int center_x, int y, const char* text) {
     canvas.Text(center_x - canvas.TextWidth(text) / 2, y, text);
 }
 
@@ -168,7 +135,7 @@ void ClockWeatherApp::ApplyTimezone(const zos::Settings& settings) {
 }
 
 zos::Rect ClockWeatherApp::TimeArea(const zos::Rect& content) {
-    return {0, content.y, content.w, 120};
+    return {0, content.y, kTimeAreaWidth, 114};
 }
 
 void ClockWeatherApp::OnEnter(zos::Context& ctx) {
@@ -326,7 +293,8 @@ void ClockWeatherApp::WorkerEntry(void* arg) {
 
 void ClockWeatherApp::RenderWeather(ZectrixCanvas& canvas, const zos::Rect& content,
                                     const std::string& city, bool connected) {
-    constexpr int kX = 244;
+    constexpr int kCardX = kTimeAreaWidth, kCardW = 184, kCardH = 106;
+    constexpr int kPad = 8;
     WeatherData data;
     Status status;
     bool has_data;
@@ -336,57 +304,68 @@ void ClockWeatherApp::RenderWeather(ZectrixCanvas& canvas, const zos::Rect& cont
         has_data = has_data_;
         status = status_;
     }
+    const int top = content.y + 6;
+    canvas.Rect(kCardX, top, kCardW, kCardH);
     char line[80];
-    canvas.Text(kX, content.y + 8, city.c_str());
     if (!has_data) {
+        canvas.Text(kCardX + kPad, top + kPad, city.c_str());
         const char* message = !connected ? "连接 Wi-Fi 后获取天气"
                               : status == Status::kFetching ? "天气获取中…"
                               : status == Status::kCityNotFound ? "找不到该城市"
                               : status == Status::kFailed ? "天气获取失败"
                                                           : "等待更新";
-        canvas.Text(kX, content.y + 40, message);
+        canvas.Text(kCardX + kPad, top + 44, message);
         if (status == Status::kFailed || status == Status::kCityNotFound) {
-            canvas.Text(kX, content.y + 62, status == Status::kFailed ? "稍后自动重试" : "请在网页中修改");
+            canvas.Text(kCardX + kPad, top + 66,
+                        status == Status::kFailed ? "稍后自动重试" : "请在网页中修改");
         }
         return;
     }
-    canvas.Text(kX + canvas.TextWidth(city.c_str()) + 10, content.y + 8, data.text.c_str());
-    DrawIcon(canvas, kX, content.y + 30, data.icon);
-    std::snprintf(line, sizeof(line), "%d℃", data.temp);
-    canvas.Text(kX + 54, content.y + 38, line, 3);
-    if (data.humidity >= 0) {
-        std::snprintf(line, sizeof(line), "体感%d℃ 湿度%d%%", data.feels_like, data.humidity);
-    } else {
-        std::snprintf(line, sizeof(line), "体感%d℃", data.feels_like);
-    }
-    canvas.Text(kX, content.y + 82, line);
-    std::snprintf(line, sizeof(line), "%s %d级", data.wind_dir.c_str(), data.wind_scale);
-    canvas.Text(kX, content.y + 100, line);
+    // Current conditions: icon and temperature, then place and feels-like.
+    DrawIcon(canvas, kCardX + kPad, top + 8, data.icon, 48);
+    DrawTemp(canvas, kCardX + kPad + 48 + 10, top + 16, data.temp, 3, true);
+    std::snprintf(line, sizeof(line), "%s %s", city.c_str(), data.text.c_str());
+    canvas.Text(kCardX + kPad, top + 64, line);
+    canvas.Text(kCardX + kPad, top + 84, "体感");
+    DrawTemp(canvas, kCardX + kPad + 36, top + 84, data.feels_like, 1, true);
 
-    // Forecast: today and the next three days.
-    const int top = content.y + 122;
-    canvas.Line(8, top, content.w - 9, top);
+    // Forecast cards: today and the next three days; today has a heavier frame.
+    const int card_top = content.y + 120;
     const int columns = std::min<int>(kForecastColumns, static_cast<int>(data.days.size()));
     for (int i = 0; i < columns; ++i) {
-        const int center = 4 + i * 98 + 49;
         const WeatherDay& day = data.days[i];
-        TextAt(canvas, center, top + 8, day.label.c_str());
-        TextAt(canvas, center, top + 28, day.text.c_str());
-        std::snprintf(line, sizeof(line), "%d~%d℃", day.temp_min, day.temp_max);
-        TextAt(canvas, center, top + 48, line);
+        const int x = 8 + i * 96;
+        const int center = x + 46;
+        canvas.Rect(x, card_top, 92, 78);
+        if (i == 0) canvas.Rect(x + 1, card_top + 1, 90, 76);
+        TextCenteredAt(canvas, center, card_top + 6, day.label.c_str());
+        DrawIcon(canvas, center - 16, card_top + 24, day.icon, 32);
+        const int low = DrawTemp(canvas, 0, 0, day.temp_min, 1, false, false);
+        std::snprintf(line, sizeof(line), "~%d", day.temp_max);
+        const int tail = canvas.TextWidth(line) + 2 + 5;  // "~max" and a ring
+        const int start = center - (low + tail) / 2;
+        const int after_low = start + DrawTemp(canvas, start, card_top + 58, day.temp_min, 1, false);
+        canvas.Text(after_low, card_top + 58, line);
+        const int ring_x = after_low + canvas.TextWidth(line) + 2;
+        canvas.Rect(ring_x, card_top + 60, 5, 5);
     }
+
+    // One line with the rest: humidity, wind, air quality, UV.
     int used = 0;
     line[0] = '\0';
+    if (data.humidity >= 0) {
+        used += std::snprintf(line + used, sizeof(line) - used, "湿度%d%%  ", data.humidity);
+    }
+    if (!data.wind_dir.empty()) {
+        used += std::snprintf(line + used, sizeof(line) - used, "%s%d级  ", data.wind_dir.c_str(), data.wind_scale);
+    }
     if (data.aqi >= 0) {
         used += std::snprintf(line + used, sizeof(line) - used, "空气%s %d  ", data.aqi_text.c_str(), data.aqi);
     }
     if (!data.uv_text.empty()) {
-        used += std::snprintf(line + used, sizeof(line) - used, "紫外线%s  ", data.uv_text.c_str());
+        std::snprintf(line + used, sizeof(line) - used, "紫外线%s", data.uv_text.c_str());
     }
-    if (!data.update_time.empty()) {
-        std::snprintf(line + used, sizeof(line) - used, "更新%s", data.update_time.c_str());
-    }
-    canvas.Text(14, top + 76, line);
+    canvas.Text(10, content.y + 206, line);
 }
 
 void ClockWeatherApp::Render(zos::Context& ctx, ZectrixCanvas& canvas,

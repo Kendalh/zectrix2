@@ -9,14 +9,20 @@
 // Parsing is adapted from the youn-ink-fourcolor-firmware project (MIT).
 // Pure code: no network, no ESP-IDF, so the PC simulator builds it unchanged.
 
+// Order matches the tables in weather_icons.h (tools/generate_weather_icons.py).
+enum class WeatherIcon {
+    kSunny, kClearNight, kPartlyCloudy, kPartlyCloudyNight, kOvercast,
+    kRain, kHeavyRain, kThunder, kSnow, kFog,
+};
+
 struct WeatherDay {
     std::string label;  // 今天 / 明天 / 周X
     std::string text;   // 晴 / 多云 / 小雨
+    WeatherIcon icon = WeatherIcon::kSunny;
     int temp_min = 0;
     int temp_max = 0;
 };
 
-enum class WeatherIcon { kSunny, kPartlyCloudy, kOvercast, kRain, kThunder, kSnow, kFog };
 
 struct WeatherData {
     std::string text;        // current condition, e.g. 多云
@@ -42,7 +48,10 @@ struct WeatherCity {
 
 /** WMO weather interpretation code -> 晴 / 多云 / 小雨 ... */
 const char* WmoText(int code);
+/** Daytime icon for a WMO code; see NightIcon(). */
 WeatherIcon WmoIcon(int code);
+/** Night variant of a clear / partly cloudy icon; others are unchanged. */
+WeatherIcon NightIcon(WeatherIcon icon);
 std::string WindDirectionText(double degrees);
 /** km/h -> Beaufort 0..12 */
 int WindBeaufort(double kmh);
