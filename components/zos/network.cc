@@ -94,7 +94,10 @@ std::string Network::ip() const {
 }
 int Network::rssi() const { return WifiManager::GetInstance().GetRssi(); }
 
-void Network::StartConfigAp() { WifiManager::GetInstance().StartConfigAp(); }
+void Network::StartConfigAp() {
+    if (before_config_ap_) before_config_ap_();
+    WifiManager::GetInstance().StartConfigAp();
+}
 void Network::StopConfigAp() {
     WifiManager& wifi = WifiManager::GetInstance();
     wifi.StopConfigAp();

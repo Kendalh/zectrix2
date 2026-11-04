@@ -98,4 +98,11 @@ void WebServer::Start(Shell& shell) {
     ESP_LOGI(kTag, "web server started");
 }
 
+void WebServer::Stop() {
+    if (server_ == nullptr) return;
+    httpd_stop(server_);
+    server_ = nullptr;
+    ESP_LOGI(kTag, "web server stopped");
+}
+
 }  // namespace zos

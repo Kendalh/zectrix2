@@ -119,6 +119,7 @@ Shell::Shell(ZectrixBoard& board, Display& display, Network& network,
       web_(web),
       launcher_(std::make_unique<Launcher>(*this)) {
     events_ = xQueueCreate(16, sizeof(Event));
+    network_.set_before_config_ap([this] { web_.Stop(); });
 }
 
 Shell::~Shell() = default;
@@ -250,7 +251,7 @@ void Shell::Dispatch(const Event& event) {
             PowerOff();
         case Event::kWake:
             network_.PollTimeSync();
-            if (network_.connected()) web_.Start(*this);
+            if (network_.connected() && !network_.config_mode()) web_.Start(*this);
             current().OnWake(*this);
             break;
         case Event::kConfig:

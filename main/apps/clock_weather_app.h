@@ -42,6 +42,7 @@ private:
     static void ApplyTimezone(const zos::Settings& settings);
     static zos::Rect TimeArea(const zos::Rect& content);
     static void WorkerEntry(void* arg);
+    static void RunWorker(Job* job);
 
     /** Start a fetch if Wi-Fi is up, none runs and the data is stale (or `force`). */
     void MaybeFetch(zos::Context& ctx, bool force);

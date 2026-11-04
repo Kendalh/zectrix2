@@ -241,7 +241,12 @@ void ClockWeatherApp::MaybeFetch(zos::Context& ctx, bool force) {
 
 // Runs on its own task: blocking HTTPS must never stall the shell.
 void ClockWeatherApp::WorkerEntry(void* arg) {
-    std::unique_ptr<Job> job(static_cast<Job*>(arg));
+    RunWorker(static_cast<Job*>(arg));
+    vTaskDelete(nullptr);  // a FreeRTOS task must never return
+}
+
+void ClockWeatherApp::RunWorker(Job* raw_job) {
+    std::unique_ptr<Job> job(raw_job);
     ClockWeatherApp* app = job->app;
     Status result = Status::kFailed;
     WeatherData data;

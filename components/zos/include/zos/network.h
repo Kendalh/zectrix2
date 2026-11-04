@@ -24,6 +24,8 @@ public:
 
     /** Start the provisioning hotspot with its captive portal. */
     void StartConfigAp();
+    /** Called right before the hotspot starts (it binds port 80 itself). */
+    void set_before_config_ap(std::function<void()> fn) { before_config_ap_ = std::move(fn); }
     /** Leave provisioning and reconnect with the saved networks. */
     void StopConfigAp();
     bool config_mode() const;
@@ -40,6 +42,7 @@ private:
     void StartSntp();
 
     std::function<void()> on_change_;
+    std::function<void()> before_config_ap_;
     RtcPcf8563* rtc_ = nullptr;
     bool sntp_started_ = false;
     std::atomic<bool> time_synced_{false};

@@ -319,4 +319,5 @@ bool Network::time_valid() { return true; }
 void Network::StartSntp() {}
 
 void WebServer::Start(Shell& shell) { shell_ = &shell; }
+void WebServer::Stop() {}
 }  // namespace zos

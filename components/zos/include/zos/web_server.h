@@ -20,6 +20,9 @@ public:
     /** Idempotent. */
     void Start(Shell& shell);
 
+    /** Free port 80 (the Wi-Fi setup portal needs it). Start() brings it back. */
+    void Stop();
+
     Shell& shell() { return *shell_; }
 
 private:

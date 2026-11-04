@@ -25,6 +25,9 @@ Chinese font on the panel are unverified); the PC simulator is the only runtime 
   now sets main 12288, lwIP 8192, event 4096, WDT 10 s, mbedTLS buffers in PSRAM, and youn's Wi-Fi/PSRAM values.
   The weather worker task has a 16 KB stack. `sdkconfig.defaults` only applies to a NEW `sdkconfig`: delete
   `sdkconfig` (and rebuild) after changing it.
+- FreeRTOS tasks must never return: end with `vTaskDelete(nullptr)` (weather worker did not and aborted the device).
+- The config AP (esp-wifi-connect) starts its own httpd on port 80 and `ESP_ERROR_CHECK`s it: `Network::StartConfigAp`
+  stops `zos::WebServer` first; the shell restarts it on the next wake when not in config mode.
 - Page changes log `UI stack free N bytes`; if it drops below ~2000, raise the main stack before adding features.
 - Hardware crashes cannot be reproduced here: ask the user for the serial log (`idf.py monitor`, 115200, USB-C)
   and decode the backtrace with the matching `build/*.elf`.
@@ -86,7 +89,7 @@ Chinese font on the panel are unverified); the PC simulator is the only runtime 
 
 ## Publishing a build
 - `scripts/upload_firmware.sh [dist/zectrix-os-vX.Y.Z.bin]` uploads to the Alibaba Cloud nginx host (same one the
-  youn project uses) as `zectrix-os-vX.Y.Z_<UTC stamp>.bin` + `.sha256`, never overwriting, and verifies through
+  youn project uses) as `zectrix-os-vX.Y.Z.bin` (the file name carries the version, no timestamp; bump the version for every build) + `.sha256`, never overwriting, and verifies through
   nginx on the server. Host, key and directory are NOT stored in this repo; the script reads them from
   `~/workspace/aifin/sync_reports_to_cloud.sh`. Only add files under `/fin/firmware/`; never touch the nginx
   config or aifin's `index.html`/`report/`. Files are world-readable; the dev machine's network blocks the public
