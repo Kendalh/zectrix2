@@ -119,8 +119,8 @@ TokenBoardApp::Status TokenBoardApp::CurrentStatus() const {
         st.loading = s.loading;
         st.error = s.error;
         st.updated = s.updated;
-        sig += std::string(s.configured ? "c" : "n") + "|" + s.error + "|" + std::to_string(s.updated) + "|" +
-               std::to_string(s.balance) + "|" + std::to_string(s.today_cost) + "|" + std::to_string(s.hour_cost) +
+        sig += std::string(s.configured ? "c" : "n") + (s.loading ? "L" : "l") + "|" + s.error + "|" +
+               std::to_string(s.updated) + "|" + std::to_string(s.balance) + "|" + std::to_string(s.today_cost) + "|" + std::to_string(s.hour_cost) +
                SignatureOf(s.yesterday) + SignatureOf(s.today);
     } else {
         const board::DeepSeekSnapshot s = board::DeepSeekService::Get().GetSnapshot();
@@ -128,8 +128,8 @@ TokenBoardApp::Status TokenBoardApp::CurrentStatus() const {
         st.loading = s.loading;
         st.error = s.error;
         st.updated = s.updated;
-        sig += std::string(s.configured ? "c" : "n") + "|" + s.error + "|" + std::to_string(s.updated) + "|" +
-               std::to_string(s.balance.primary.total) + "|" + std::to_string(s.today_cost) + "|" +
+        sig += std::string(s.configured ? "c" : "n") + (s.loading ? "L" : "l") + "|" + s.error + "|" +
+               std::to_string(s.updated) + "|" + std::to_string(s.balance.primary.total) + "|" + std::to_string(s.today_cost) + "|" +
                std::to_string(s.hour_cost) + (s.balance.available ? "|a" : "|u");
     }
     st.signature = sig;

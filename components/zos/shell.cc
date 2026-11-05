@@ -299,8 +299,7 @@ void Shell::Splash() {
     canvas.Clear();
     canvas.FillRect(0, 0, 400, 8, true);
     canvas.FillRect(0, 292, 400, 8, true);
-    canvas.TextCentered(70, "ZECTRIX", 4);
-    canvas.TextCentered(150, "OS", 3);
+    canvas.TextCentered(100, "My OS", 4);
     canvas.Line(72, 200, 327, 200);
     canvas.TextCentered(214, "电子纸应用平台", 1);
     display_.Full();

@@ -20,7 +20,7 @@ canvas{width:100%;border:1px solid #888;background:#fff;image-rendering:pixelate
 .row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #eee;gap:8px}
 .row span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.st{color:#555;font-size:13px}.ok{color:#080}.err{color:#b00}
 </style></head><body>
-<a href="/">‹ 返回</a><h1>相册</h1>
+<a href="/">‹ 返回应用列表</a><h1>相册</h1>
 <div class="card"><h2>上传照片</h2>
 <input type="file" id="file" accept="image/*">
 <label>方式</label><select id="fit"><option value="cover">铺满（裁掉多余部分）</option><option value="contain">完整显示（四周留白）</option></select>

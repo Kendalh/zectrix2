@@ -6,7 +6,7 @@
 //   #/            list     #/app/<id>   one app's settings
 static const char kWebUiHtml[] = R"HTML(<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ZECTRIX OS</title>
+<title>My OS</title>
 <style>
 body{font:15px system-ui,sans-serif;max-width:640px;margin:0 auto;padding:12px;background:#f4f4f4;color:#111}
 h1{font-size:20px}.card{background:#fff;border:1px solid #ccc;border-radius:6px;padding:12px;margin:12px 0}
@@ -19,7 +19,7 @@ input[type=text],input[type=password],input[type=number],select{width:100%;box-s
 button{margin-top:14px;padding:8px 16px;font-size:15px;background:#111;color:#fff;border:0;border-radius:4px}
 .st{color:#555;font-size:13px}.ok{color:#080}.err{color:#b00}
 </style></head><body>
-<h1>ZECTRIX OS</h1><div id="status" class="st"></div><div id="view"></div>
+<h1>My OS</h1><div id="status" class="st"></div><div id="view"></div>
 <script>
 const $=(t,p={},c=[])=>{const e=Object.assign(document.createElement(t),p);c.forEach(x=>e.append(x));return e};
 const view=document.getElementById('view');

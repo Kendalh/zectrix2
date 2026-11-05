@@ -1,4 +1,4 @@
-# ZECTRIX OS
+# My OS
 
 The demo firmware is now a small app platform. The panel driver
 (`zectrix_epd`) and board code (`zectrix_board`) are unchanged; the OS layer is
